@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chăm sóc Sau Bán Hàng - Metric System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        /* ─── Stats ──────────────────────────────────────────────── */
+        .stat-card { border-radius:12px;padding:18px 20px;color:#fff; }
+        .stat-card .val { font-size:26px;font-weight:700; }
+        .stat-card .lbl { font-size:12px;opacity:.85; }
+
+        /* ─── Tab ──────────────────────────────────────────────────── */
+        .nav-tabs .nav-link { color:#495057; }
+        .nav-tabs .nav-link.active { color:#0d6efd;font-weight:600; }
+
+        /* ─── Badges ───────────────────────────────────────────────── */
+        .badge-PENDING    { background:#6c757d;color:#fff; }
+        .badge-DONE       { background:#198754;color:#fff; }
+        .badge-SKIPPED    { background:#ffc107;color:#333; }
+        .badge-CANCELLED  { background:#343a40;color:#fff; }
+
+        .badge-DAY_3  { background:#dc3545;color:#fff; }
+        .badge-DAY_7  { background:#fd7e14;color:#fff; }
+        .badge-DAY_10 { background:#0d6efd;color:#fff; }
+        .badge-CUSTOM { background:#6c757d;color:#fff; }
+
+        .badge-HIGH   { background:#dc3545;color:#fff; }
+        .badge-MEDIUM { background:#fd7e14;color:#fff; }
+        .badge-LOW    { background:#0d6efd;color:#fff; }
+
+        .badge-CALL    { background:#0dcaf0;color:#333; }
+        .badge-MESSAGE { background:#6f42c1;color:#fff; }
+        .badge-EMAIL   { background:#0d6efd;color:#fff; }
+        .badge-VISIT   { background:#198754;color:#fff; }
+        .badge-ZALO    { background:#1565c0;color:#fff; }
+        .badge-FACEBOOK{ background:#3b5998;color:#fff; }
+
+        .badge-SATISFIED    { background:#198754;color:#fff; }
+        .badge-COMPLAINED   { background:#dc3545;color:#fff; }
+        .badge-REPEAT_ORDER { background:#0d6efd;color:#fff; }
+        .badge-ANSWERED     { background:#20c997;color:#fff; }
+        .badge-NO_ANSWER    { background:#6c757d;color:#fff; }
+        .badge-CALLBACK     { background:#fd7e14;color:#333; }
+        .badge-LEFT_MESSAGE { background:#6f42c1;color:#fff; }
+        .badge-NOT_INTERESTED { background:#343a40;color:#fff; }
+
+        /* ─── Overdue row ──────────────────────────────────────────── */
+        .row-overdue { background:#fff5f5; }
+        .row-repeat-order { background:#f0fff4; }
+
+        /* ─── Rating stars ─────────────────────────────────────────── */
+        .star { color:#ffc107;font-size:14px; }
+        .star-empty { color:#dee2e6;font-size:14px; }
+
+        /* ─── Detail panel ─────────────────────────────────────────── */
+        #detailPanel {
+            position:fixed;top:0;right:-500px;width:500px;height:100vh;
+            background:#fff;box-shadow:-4px 0 20px rgba(0,0,0,.15);
+            z-index:1050;transition:right .3s ease;overflow-y:auto;
+        }
+        #detailPanel.open { right:0; }
+
+        /* ─── Care notes preview ───────────────────────────────────── */
+        .care-notes-preview {
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+            max-width:200px;display:inline-block;
+            font-size:12px;color:#6c757d;
+        }
+
+        .table td, .table th { vertical-align:middle;font-size:13.5px; }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{dashboard :: sidebar}"></div>
+
+<div class="main-content" id="mainContent">
+
+    <!-- ─── Header ─────────────────────────────────────────────────────── -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0"><i class="fas fa-heart me-2 text-danger"></i>Chăm sóc Sau Bán Hàng</h4>
+            <small class="text-muted">Theo dõi &amp; ghi nhận chăm sóc khách hàng sau khi giao hàng</small>
+        </div>
+        <div>
+            <button class="btn btn-outline-primary btn-sm me-2" onclick="refreshAll()">
+                <i class="fas fa-sync-alt"></i> Làm mới
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="openCreateModal()">
+                <i class="fas fa-plus"></i> Tạo Reminder Thủ Công
+            </button>
+        </div>
+    </div>
+
+    <!-- ─── Stats ────────────────────────────────────────────────────────── -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#e53935,#ef9a9a)">
+                <div class="lbl">Hôm nay cần làm</div>
+                <div class="val" id="statToday">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#b71c1c,#d32f2f)">
+                <div class="lbl">Quá hạn</div>
+                <div class="val" id="statOverdue">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#1976d2,#64b5f6)">
+                <div class="lbl">Còn chờ xử lý</div>
+                <div class="val" id="statPending">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#43a047,#a5d6a7)">
+                <div class="lbl">Đã hoàn thành (tổng)</div>
+                <div class="val" id="statDone">–</div>
+            </div>
+        </div>
+    </div>
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#7b1fa2,#ce93d8)">
+                <div class="lbl">Liên hệ hôm nay</div>
+                <div class="val" id="statContactsToday">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#f57c00,#ffcc80)">
+                <div class="lbl">Đánh giá TB (sao)</div>
+                <div class="val" id="statAvgRating">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#0288d1,#81d4fa)">
+                <div class="lbl">Cơ hội đặt hàng lại</div>
+                <div class="val" id="statRepeatOrders">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#757575,#bdbdbd)">
+                <div class="lbl">Đã bỏ qua / Hủy</div>
+                <div class="val" id="statSkipped">–</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── Tabs ────────────────────────────────────────────────────────── -->
+    <ul class="nav nav-tabs mb-3" id="mainTabs">
+        <li class="nav-item">
+            <a class="nav-link active" href="#" onclick="switchTab('today', this)">
+                <i class="fas fa-calendar-day me-1"></i>Hôm nay cần làm
+                <span class="badge bg-danger ms-1" id="tabBadgeToday">0</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="switchTab('all', this)">
+                <i class="fas fa-list me-1"></i>Tất cả Reminders
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="switchTab('logs', this)">
+                <i class="fas fa-phone-alt me-1"></i>Nhật ký Liên hệ (6.4)
+            </a>
+        </li>
+    </ul>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         TAB 1 — Hôm nay cần làm
+    ════════════════════════════════════════════════════════════════════ -->
+    <div id="tabToday">
+
+        <!-- Sub-filter: today / overdue / upcoming -->
+        <div class="btn-group mb-3" role="group">
+            <button type="button" class="btn btn-sm btn-outline-danger active" id="btnTodayFilter"
+                    onclick="setDayFilter('today',this)">
+                <i class="fas fa-calendar-day"></i> Hôm nay
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    onclick="setDayFilter('overdue',this)">
+                <i class="fas fa-exclamation-triangle"></i> Quá hạn
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-info"
+                    onclick="setDayFilter('upcoming',this)">
+                <i class="fas fa-calendar-alt"></i> 7 ngày tới
+            </button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="tblToday">
+                <thead class="table-light">
+                    <tr>
+                        <th>Khách hàng</th>
+                        <th>Đơn hàng</th>
+                        <th>Loại nhắc</th>
+                        <th>Ngày nhắc</th>
+                        <th>Ưu tiên</th>
+                        <th>Ghi chú chăm sóc</th>
+                        <th>Liên hệ lần</th>
+                        <th>NV phụ trách</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyToday">
+                    <tr><td colspan="9" class="text-center text-muted py-4">Đang tải...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         TAB 2 — Tất cả Reminders
+    ════════════════════════════════════════════════════════════════════ -->
+    <div id="tabAll" class="d-none">
+
+        <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+            <select class="form-select form-select-sm" style="width:auto" id="filterStatus"
+                    onchange="loadAllReminders()">
+                <option value="">Tất cả trạng thái</option>
+                <option value="PENDING">Chờ thực hiện</option>
+                <option value="DONE">Đã hoàn thành</option>
+                <option value="SKIPPED">Bỏ qua</option>
+                <option value="CANCELLED">Đã hủy</option>
+            </select>
+            <input type="text" class="form-control form-control-sm" style="width:220px"
+                   id="filterSearch" placeholder="Tìm theo tên KH / mã đơn..."
+                   oninput="filterReminderTable()">
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover" id="tblAll">
+                <thead class="table-light">
+                    <tr>
+                        <th>Khách hàng</th>
+                        <th>Đơn hàng</th>
+                        <th>Loại nhắc</th>
+                        <th>Ngày nhắc</th>
+                        <th>Trạng thái</th>
+                        <th>Ưu tiên</th>
+                        <th>Ghi chú</th>
+                        <th>Liên hệ</th>
+                        <th>NV</th>
+                        <th>Đánh giá</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyAll">
+                    <tr><td colspan="11" class="text-center text-muted py-4">Đang tải...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <nav>
+            <ul class="pagination pagination-sm justify-content-end" id="allPagination"></ul>
+        </nav>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         TAB 3 — Nhật ký Liên hệ
+    ════════════════════════════════════════════════════════════════════ -->
+    <div id="tabLogs" class="d-none">
+
+        <div class="table-responsive">
+            <table class="table table-hover" id="tblLogs">
+                <thead class="table-light">
+                    <tr>
+                        <th>Thời gian</th>
+                        <th>Khách hàng</th>
+                        <th>Đơn hàng</th>
+                        <th>Nhân viên</th>
+                        <th>Hình thức</th>
+                        <th>Kết quả</th>
+                        <th>Đánh giá</th>
+                        <th>Nội dung</th>
+                        <th>Phản hồi KH</th>
+                        <th>Bước tiếp theo</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyLogs">
+                    <tr><td colspan="10" class="text-center text-muted py-4">Đang tải...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <nav>
+            <ul class="pagination pagination-sm justify-content-end" id="logsPagination"></ul>
+        </nav>
+    </div>
+
+</div><!-- /.main-content -->
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     SLIDE-IN DETAIL PANEL
+════════════════════════════════════════════════════════════════════════ -->
+<div id="detailPanel">
+    <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+        <h6 class="mb-0 fw-bold">Chi tiết Reminder</h6>
+        <button class="btn btn-sm btn-close" onclick="closeDetailPanel()"></button>
+    </div>
+    <div class="p-3" id="detailPanelBody">
+        <div class="text-center text-muted py-5">Chọn 1 dòng để xem chi tiết...</div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     MODAL — Ghi nhận liên hệ
+════════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalLogContact" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-phone me-2"></i>Ghi nhận liên hệ chăm sóc</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="logReminderId">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Hình thức liên hệ <span class="text-danger">*</span></label>
+                        <select class="form-select" id="logContactType">
+                            <option value="">-- Chọn --</option>
+                            <option value="CALL">📞 Gọi điện</option>
+                            <option value="MESSAGE">💬 Tin nhắn</option>
+                            <option value="ZALO">🟦 Zalo</option>
+                            <option value="FACEBOOK">👤 Facebook</option>
+                            <option value="EMAIL">✉️ Email</option>
+                            <option value="VISIT">🚶 Ghé thăm</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Kết quả <span class="text-danger">*</span></label>
+                        <select class="form-select" id="logOutcome">
+                            <option value="">-- Chọn --</option>
+                            <option value="ANSWERED">✅ Có phản hồi</option>
+                            <option value="NO_ANSWER">📵 Không liên lạc được</option>
+                            <option value="CALLBACK">🔄 Sẽ gọi lại</option>
+                            <option value="LEFT_MESSAGE">📝 Để lại tin nhắn</option>
+                            <option value="SATISFIED">😊 Hài lòng</option>
+                            <option value="COMPLAINED">😡 Có khiếu nại</option>
+                            <option value="REPEAT_ORDER">🛍️ Muốn đặt thêm</option>
+                            <option value="NOT_INTERESTED">🚫 Không có nhu cầu</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Nội dung trao đổi</label>
+                        <textarea class="form-control" id="logContent" rows="3"
+                                  placeholder="Ghi lại nội dung trao đổi với khách..."></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Phản hồi của khách</label>
+                        <textarea class="form-control" id="logCustomerFeedback" rows="2"
+                                  placeholder="Ý kiến / phản hồi trực tiếp của khách hàng..."></textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Đánh giá khách hàng</label>
+                        <div class="d-flex gap-2 align-items-center mt-1">
+                            <span class="me-1 text-muted" style="font-size:13px;">1</span>
+                            <div id="starRating" class="d-flex gap-1">
+                                <i class="fas fa-star star-select fs-4" data-val="1" onclick="setRating(1)" style="cursor:pointer;color:#dee2e6;"></i>
+                                <i class="fas fa-star star-select fs-4" data-val="2" onclick="setRating(2)" style="cursor:pointer;color:#dee2e6;"></i>
+                                <i class="fas fa-star star-select fs-4" data-val="3" onclick="setRating(3)" style="cursor:pointer;color:#dee2e6;"></i>
+                                <i class="fas fa-star star-select fs-4" data-val="4" onclick="setRating(4)" style="cursor:pointer;color:#dee2e6;"></i>
+                                <i class="fas fa-star star-select fs-4" data-val="5" onclick="setRating(5)" style="cursor:pointer;color:#dee2e6;"></i>
+                            </div>
+                            <span class="ms-1 text-muted" style="font-size:13px;">5</span>
+                            <input type="hidden" id="logRating" value="">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Thời gian liên hệ</label>
+                        <input type="datetime-local" class="form-control" id="logContactedAt">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Bước tiếp theo / Ghi chú</label>
+                        <textarea class="form-control" id="logNextAction" rows="2"
+                                  placeholder="Cần làm gì tiếp theo?..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-success" onclick="submitLogContact()">
+                    <i class="fas fa-save me-1"></i>Ghi nhận
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     MODAL — Đánh dấu Xong
+════════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalMarkDone" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>Đánh dấu Hoàn thành</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="doneReminderId">
+                <p class="text-muted mb-3">Bạn có muốn ghi lại thông tin liên hệ cuối cùng không? (Tùy chọn)</p>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="doneWithLog" onchange="toggleDoneLog()">
+                    <label class="form-check-label" for="doneWithLog">Có, ghi nhận lần liên hệ này</label>
+                </div>
+                <div id="doneLogSection" class="d-none">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <select class="form-select form-select-sm" id="doneContactType">
+                                <option value="">Hình thức...</option>
+                                <option value="CALL">Gọi điện</option>
+                                <option value="MESSAGE">Tin nhắn</option>
+                                <option value="ZALO">Zalo</option>
+                                <option value="FACEBOOK">Facebook</option>
+                                <option value="EMAIL">Email</option>
+                                <option value="VISIT">Ghé thăm</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <select class="form-select form-select-sm" id="doneOutcome">
+                                <option value="">Kết quả...</option>
+                                <option value="SATISFIED">Hài lòng</option>
+                                <option value="ANSWERED">Có phản hồi</option>
+                                <option value="REPEAT_ORDER">Muốn đặt thêm</option>
+                                <option value="COMPLAINED">Có khiếu nại</option>
+                                <option value="NOT_INTERESTED">Không nhu cầu</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <textarea class="form-control form-control-sm" id="doneContent" rows="2"
+                                      placeholder="Ghi chú nội dung trao đổi..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-success" onclick="submitMarkDone()">
+                    <i class="fas fa-check me-1"></i>Đánh dấu Xong
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     MODAL — Bỏ qua Reminder
+════════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalSkip" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-forward me-2"></i>Bỏ qua Reminder</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="skipReminderId">
+                <div class="mb-3">
+                    <label class="form-label">Loại bỏ qua</label>
+                    <select class="form-select" id="skipStatus">
+                        <option value="SKIPPED">Bỏ qua lần này (SKIPPED)</option>
+                        <option value="CANCELLED">Hủy hoàn toàn (CANCELLED)</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Lý do <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="skipReason" rows="3"
+                              placeholder="Ghi rõ lý do bỏ qua / hủy..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-warning" onclick="submitSkip()">
+                    <i class="fas fa-forward me-1"></i>Xác nhận Bỏ qua
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     MODAL — Tạo Reminder Thủ Công
+════════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalCreate" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Tạo Reminder Tùy Chỉnh</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Mã đơn hàng (Order ID) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="createOrderId" placeholder="Nhập ID đơn hàng...">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Ngày nhắc <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="createReminderDate">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Ưu tiên</label>
+                        <select class="form-select" id="createPriority">
+                            <option value="MEDIUM">Trung bình</option>
+                            <option value="HIGH">Cao</option>
+                            <option value="LOW">Thấp</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">ID Nhân viên phụ trách (tùy chọn)</label>
+                        <input type="number" class="form-control" id="createStaffId" placeholder="Để trống nếu chưa phân công...">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Ghi chú chăm sóc</label>
+                        <textarea class="form-control" id="createCareNotes" rows="3"
+                                  placeholder="Hướng dẫn chăm sóc, câu hỏi cần hỏi KH..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="submitCreate()">
+                    <i class="fas fa-save me-1"></i>Tạo Reminder
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script th:src="@{/js/form-validator.js}"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════════════ */
+var currentDayFilter = 'today';
+var allReminderPage  = 0;
+var allReminderSize  = 20;
+var logsPage         = 0;
+var logsSize         = 20;
+var currentUserId    = 1; // TODO: pull from session
+
+/* ═══════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════ */
+loadOverviewStats();
+loadTodayReminders();
+
+/* ═══════════════════════════════════════════════════════════════
+   TABS
+═══════════════════════════════════════════════════════════════ */
+function switchTab(tab, el) {
+    // hide all
+    ['tabToday','tabAll','tabLogs'].forEach(id =>
+        document.getElementById(id).classList.add('d-none'));
+    // deactivate nav links
+    document.querySelectorAll('#mainTabs .nav-link').forEach(a =>
+        a.classList.remove('active'));
+    // show target
+    document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1))
+            .classList.remove('d-none');
+    el.classList.add('active');
+    // lazy-load
+    if (tab === 'all')  loadAllReminders();
+    if (tab === 'logs') loadAllLogs();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   OVERVIEW STATS
+═══════════════════════════════════════════════════════════════ */
+function loadOverviewStats() {
+    fetch('/api/after-sales/overview', {headers: authHeaders()})
+        .then(r => r.json()).then(res => {
+            if (!res.success) return;
+            const d = res.data;
+            document.getElementById('statToday').textContent    = d.todayPending ?? '–';
+            document.getElementById('statOverdue').textContent  = d.overdue ?? '–';
+            document.getElementById('statPending').textContent  = d.totalPending ?? '–';
+            document.getElementById('statDone').textContent     = d.totalDone ?? '–';
+            document.getElementById('statSkipped').textContent  = (d.totalSkipped ?? 0) + ' / ' + (d.totalCancelled ?? 0);
+            document.getElementById('statContactsToday').textContent = d.contactsToday ?? '–';
+            document.getElementById('statAvgRating').textContent =
+                d.avgRating ? Number(d.avgRating).toFixed(1) : '–';
+            document.getElementById('statRepeatOrders').textContent = d.repeatOrders ?? '–';
+            document.getElementById('tabBadgeToday').textContent    = d.todayPending ?? 0;
+        }).catch(e => console.error('Overview stats error:', e));
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TAB 1 — TODAY / OVERDUE / UPCOMING
+═══════════════════════════════════════════════════════════════ */
+function setDayFilter(filter, btn) {
+    currentDayFilter = filter;
+    document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadTodayReminders();
+}
+
+function loadTodayReminders() {
+    const url = {
+        today:    '/api/after-sales/reminders/today',
+        overdue:  '/api/after-sales/reminders/overdue',
+        upcoming: '/api/after-sales/reminders/upcoming?days=7',
+    }[currentDayFilter];
+
+    document.getElementById('tbodyToday').innerHTML =
+        '<tr><td colspan="9" class="text-center text-muted">Đang tải...</td></tr>';
+
+    fetch(url, {headers: authHeaders()})
+        .then(r => r.json()).then(res => {
+            const rows = (res.data || []);
+            if (!rows.length) {
+                document.getElementById('tbodyToday').innerHTML =
+                    '<tr><td colspan="9" class="text-center text-muted py-4">' +
+                    '<i class="fas fa-check-circle text-success me-2"></i>Không có reminder nào</td></tr>';
+                return;
+            }
+            document.getElementById('tbodyToday').innerHTML = rows.map(renderTodayRow).join('');
+        }).catch(e => {
+            document.getElementById('tbodyToday').innerHTML =
+                '<tr><td colspan="9" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>';
+        });
+}
+
+function renderTodayRow(r) {
+    const overdueClass = r.isOverdue ? 'row-overdue' : '';
+    const overdueBadge = r.isOverdue
+        ? `<span class="badge bg-danger ms-1" title="${r.daysOverdue} ngày">${r.daysOverdue}n trễ</span>` : '';
+    return `<tr class="${overdueClass}" data-id="${r.id}">
+        <td>
+            <div class="fw-semibold">${esc(r.customerName || '–')}</div>
+            <small class="text-muted">${esc(r.customerPhone || '')}</small>
+        </td>
+        <td>
+            <div>${esc(r.orderCode || 'ID:' + r.orderId)}</div>
+            <small class="text-muted">${esc(r.orderType || '')}</small>
+        </td>
+        <td><span class="badge badge-${r.reminderType}">${esc(r.reminderTypeLabel)}</span>${overdueBadge}</td>
+        <td><small>${fmtDate(r.reminderDate)}</small></td>
+        <td><span class="badge badge-${r.priority}">${esc(r.priorityLabel)}</span></td>
+        <td><span class="care-notes-preview" title="${esc(r.careNotes || '')}">${esc(r.careNotes || '–')}</span></td>
+        <td class="text-center">${r.contactCount}</td>
+        <td><small>${esc(r.assignedStaffName || '–')}</small></td>
+        <td>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-primary" title="Ghi nhận liên hệ"
+                        onclick="openLogModal(${r.id})">
+                    <i class="fas fa-phone"></i>
+                </button>
+                <button class="btn btn-outline-success" title="Đánh dấu Xong"
+                        onclick="openDoneModal(${r.id})">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button class="btn btn-outline-warning" title="Bỏ qua"
+                        onclick="openSkipModal(${r.id})">
+                    <i class="fas fa-forward"></i>
+                </button>
+                <button class="btn btn-outline-secondary" title="Chi tiết"
+                        onclick="showDetail(${r.id})">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </div>
+        </td>
+    </tr>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TAB 2 — ALL REMINDERS
+═══════════════════════════════════════════════════════════════ */
+function loadAllReminders() {
+    const status = document.getElementById('filterStatus').value;
+    let url = `/api/after-sales/reminders?page=${allReminderPage}&size=${allReminderSize}`;
+    if (status) url += `&status=${status}`;
+
+    document.getElementById('tbodyAll').innerHTML =
+        '<tr><td colspan="11" class="text-center text-muted">Đang tải...</td></tr>';
+
+    fetch(url, {headers: authHeaders()})
+        .then(r => r.json()).then(res => {
+            const page = res.data;
+            const content = page.content || [];
+            if (!content.length) {
+                document.getElementById('tbodyAll').innerHTML =
+                    '<tr><td colspan="11" class="text-center text-muted py-4">Không có dữ liệu</td></tr>';
+                renderPagination('allPagination', 0, 0, 'loadAllRemindersPage');
+                return;
+            }
+            document.getElementById('tbodyAll').innerHTML = content.map(renderAllRow).join('');
+            filterReminderTable();
+            renderPagination('allPagination', page.number, page.totalPages, 'loadAllRemindersPage');
+        }).catch(() => {
+            document.getElementById('tbodyAll').innerHTML =
+                '<tr><td colspan="11" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>';
+        });
+}
+
+function loadAllRemindersPage(p) {
+    allReminderPage = p;
+    loadAllReminders();
+}
+
+function filterReminderTable() {
+    const q = (document.getElementById('filterSearch').value || '').toLowerCase();
+    document.querySelectorAll('#tbodyAll tr').forEach(tr => {
+        tr.style.display = !q || tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
+function renderAllRow(r) {
+    const overdueClass    = r.isOverdue && r.status === 'PENDING' ? 'row-overdue' : '';
+    const stars = renderStars(r.customerRating);
+    return `<tr class="${overdueClass}" data-id="${r.id}">
+        <td>
+            <div class="fw-semibold">${esc(r.customerName || '–')}</div>
+            <small class="text-muted">${esc(r.customerPhone || '')}</small>
+        </td>
+        <td><small>${esc(r.orderCode || 'ID:' + r.orderId)}</small></td>
+        <td><span class="badge badge-${r.reminderType}">${esc(r.reminderTypeLabel)}</span></td>
+        <td><small>${fmtDate(r.reminderDate)}${r.isOverdue && r.status==='PENDING'
+            ? ' <span class="text-danger">(-'+r.daysOverdue+'n)</span>' : ''}</small></td>
+        <td><span class="badge badge-${r.status}">${esc(r.statusLabel)}</span></td>
+        <td><span class="badge badge-${r.priority}">${esc(r.priorityLabel)}</span></td>
+        <td><span class="care-notes-preview" title="${esc(r.careNotes||'')}">${esc(r.careNotes||'–')}</span></td>
+        <td class="text-center">${r.contactCount}</td>
+        <td><small>${esc(r.assignedStaffName||'–')}</small></td>
+        <td>${stars}</td>
+        <td>
+            <div class="btn-group btn-group-sm">
+                ${r.status === 'PENDING' ? `
+                <button class="btn btn-outline-primary" title="Ghi nhận liên hệ" onclick="openLogModal(${r.id})">
+                    <i class="fas fa-phone"></i></button>
+                <button class="btn btn-outline-success" title="Đánh dấu Xong" onclick="openDoneModal(${r.id})">
+                    <i class="fas fa-check"></i></button>
+                <button class="btn btn-outline-warning" title="Bỏ qua" onclick="openSkipModal(${r.id})">
+                    <i class="fas fa-forward"></i></button>` : ''}
+                <button class="btn btn-outline-secondary" title="Chi tiết" onclick="showDetail(${r.id})">
+                    <i class="fas fa-eye"></i></button>
+            </div>
+        </td>
+    </tr>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TAB 3 — ALL LOGS
+═══════════════════════════════════════════════════════════════ */
+function loadAllLogs() {
+    const url = `/api/after-sales/logs?page=${logsPage}&size=${logsSize}`;
+    document.getElementById('tbodyLogs').innerHTML =
+        '<tr><td colspan="10" class="text-center text-muted">Đang tải...</td></tr>';
+
+    fetch(url, {headers: authHeaders()})
+        .then(r => r.json()).then(res => {
+            const page = res.data;
+            const content = page.content || [];
+            if (!content.length) {
+                document.getElementById('tbodyLogs').innerHTML =
+                    '<tr><td colspan="10" class="text-center text-muted py-4">Chưa có nhật ký liên hệ nào</td></tr>';
+                renderPagination('logsPagination', 0, 0, 'loadLogsPage');
+                return;
+            }
+            document.getElementById('tbodyLogs').innerHTML = content.map(renderLogRow).join('');
+            renderPagination('logsPagination', page.number, page.totalPages, 'loadLogsPage');
+        }).catch(() => {
+            document.getElementById('tbodyLogs').innerHTML =
+                '<tr><td colspan="10" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>';
+        });
+}
+
+function loadLogsPage(p) {
+    logsPage = p;
+    loadAllLogs();
+}
+
+function renderLogRow(l) {
+    const repeatClass = l.outcome === 'REPEAT_ORDER' ? 'row-repeat-order' : '';
+    return `<tr class="${repeatClass}">
+        <td><small>${fmtDateTime(l.contactedAt)}</small></td>
+        <td>
+            <div class="fw-semibold">${esc(l.customerName || '–')}</div>
+            <small class="text-muted">${esc(l.customerPhone || '')}</small>
+        </td>
+        <td><small>${esc(l.orderCode || 'ID:' + l.orderId)}</small></td>
+        <td><small>${esc(l.staffName || '–')}</small></td>
+        <td><span class="badge badge-${l.contactType}">${esc(l.contactTypeLabel)}</span></td>
+        <td><span class="badge badge-${l.outcome}">${esc(l.outcomeLabel)}</span></td>
+        <td>${renderStars(l.customerRating)}</td>
+        <td><span style="max-width:160px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;" title="${esc(l.content||'')}">${esc(l.content||'–')}</span></td>
+        <td><small style="color:#666">${esc(l.customerFeedback||'–')}</small></td>
+        <td><small style="color:#0d6efd">${esc(l.nextAction||'–')}</small></td>
+    </tr>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DETAIL PANEL
+═══════════════════════════════════════════════════════════════ */
+function showDetail(reminderId) {
+    fetch(`/api/after-sales/reminders/${reminderId}`, {headers: authHeaders()})
+        .then(r => r.json()).then(res => {
+            if (!res.success) return;
+            const r = res.data;
+            const logs = r.logs || [];
+            const overdueHtml = r.isOverdue
+                ? `<span class="badge bg-danger ms-1">Trễ ${r.daysOverdue} ngày</span>` : '';
+            let html = `
+                <div class="mb-3 p-3 bg-light rounded">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="fw-bold fs-6">${esc(r.customerName||'–')}</div>
+                            <div class="text-muted">${esc(r.customerPhone||'')}</div>
+                        </div>
+                        <span class="badge badge-${r.status}">${esc(r.statusLabel)}</span>
+                    </div>
+                    <hr class="my-2">
+                    <div class="row g-2" style="font-size:13px;">
+                        <div class="col-6"><i class="fas fa-box me-1 text-muted"></i><b>Đơn hàng:</b> ${esc(r.orderCode||'ID:'+r.orderId)}</div>
+                        <div class="col-6"><i class="fas fa-calendar me-1 text-muted"></i><b>Ngày nhắc:</b> ${fmtDate(r.reminderDate)}${overdueHtml}</div>
+                        <div class="col-6"><i class="fas fa-tag me-1 text-muted"></i><b>Loại:</b> <span class="badge badge-${r.reminderType}">${esc(r.reminderTypeLabel)}</span></div>
+                        <div class="col-6"><i class="fas fa-exclamation me-1 text-muted"></i><b>Ưu tiên:</b> <span class="badge badge-${r.priority}">${esc(r.priorityLabel)}</span></div>
+                        <div class="col-6"><i class="fas fa-user me-1 text-muted"></i><b>NV:</b> ${esc(r.assignedStaffName||'–')}</div>
+                        <div class="col-6"><i class="fas fa-phone-alt me-1 text-muted"></i><b>Liên hệ:</b> ${r.contactCount} lần</div>
+                        ${r.customerRating ? `<div class="col-12"><b>Đánh giá:</b> ${renderStars(r.customerRating)}</div>` : ''}
+                        ${r.careNotes ? `<div class="col-12"><i class="fas fa-sticky-note me-1 text-muted"></i><b>Ghi chú:</b> <span style="color:#555">${esc(r.careNotes)}</span></div>` : ''}
+                        ${r.skipReason ? `<div class="col-12 text-warning"><i class="fas fa-forward me-1"></i><b>Lý do bỏ qua:</b> ${esc(r.skipReason)}</div>` : ''}
+                    </div>
+                </div>
+                ${r.status === 'PENDING' ? `
+                <div class="d-flex gap-2 mb-3">
+                    <button class="btn btn-sm btn-primary flex-fill" onclick="openLogModal(${r.id});closeDetailPanel()">
+                        <i class="fas fa-phone me-1"></i>Ghi nhận liên hệ</button>
+                    <button class="btn btn-sm btn-success flex-fill" onclick="openDoneModal(${r.id});closeDetailPanel()">
+                        <i class="fas fa-check me-1"></i>Xong</button>
+                    <button class="btn btn-sm btn-warning flex-fill" onclick="openSkipModal(${r.id});closeDetailPanel()">
+                        <i class="fas fa-forward me-1"></i>Bỏ qua</button>
+                </div>` : ''}
+                <h6 class="fw-bold mb-2"><i class="fas fa-history me-1"></i>Nhật ký liên hệ (${logs.length})</h6>`;
+            if (!logs.length) {
+                html += `<p class="text-muted text-center">Chưa có nhật ký liên hệ</p>`;
+            } else {
+                html += logs.map(l => `
+                <div class="card mb-2">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>
+                                <span class="badge badge-${l.contactType}">${esc(l.contactTypeLabel)}</span>
+                                <span class="badge badge-${l.outcome} ms-1">${esc(l.outcomeLabel)}</span>
+                            </span>
+                            <small class="text-muted">${fmtDateTime(l.contactedAt)}</small>
+                        </div>
+                        ${l.content ? `<div style="font-size:12px;color:#444">${esc(l.content)}</div>` : ''}
+                        ${l.customerFeedback ? `<div style="font-size:12px;color:#6c757d"><i>KH: ${esc(l.customerFeedback)}</i></div>` : ''}
+                        ${l.customerRating ? `<div>${renderStars(l.customerRating)}</div>` : ''}
+                        ${l.nextAction ? `<div style="font-size:12px;color:#0d6efd"><i class="fas fa-arrow-right me-1"></i>${esc(l.nextAction)}</div>` : ''}
+                        <small class="text-muted">NV: ${esc(l.staffName||'–')}</small>
+                    </div>
+                </div>`).join('');
+            }
+            document.getElementById('detailPanelBody').innerHTML = html;
+            document.getElementById('detailPanel').classList.add('open');
+        });
+}
+
+function closeDetailPanel() {
+    document.getElementById('detailPanel').classList.remove('open');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODAL — LOG CONTACT
+═══════════════════════════════════════════════════════════════ */
+function openLogModal(reminderId) {
+    document.getElementById('logReminderId').value    = reminderId;
+    document.getElementById('logContactType').value    = '';
+    document.getElementById('logOutcome').value        = '';
+    document.getElementById('logContent').value        = '';
+    document.getElementById('logCustomerFeedback').value = '';
+    document.getElementById('logNextAction').value     = '';
+    document.getElementById('logRating').value         = '';
+    document.getElementById('logContactedAt').value    = new Date().toISOString().slice(0,16);
+    setRating(0);
+    new bootstrap.Modal(document.getElementById('modalLogContact')).show();
+}
+
+function submitLogContact() {
+    const reminderId  = document.getElementById('logReminderId').value;
+    const contactType = document.getElementById('logContactType').value;
+    const outcome     = document.getElementById('logOutcome').value;
+    const ok = FormValidator.validate('modalLogContact', [
+        { id: 'logContactType', label: 'Hình thức liên hệ', required: true },
+        { id: 'logOutcome',     label: 'Kết quả',            required: true }
+    ]);
+    if (!ok) return;
+    const payload = {
+        contactType,
+        outcome,
+        content:          document.getElementById('logContent').value,
+        customerFeedback: document.getElementById('logCustomerFeedback').value,
+        customerRating:   document.getElementById('logRating').value ? parseInt(document.getElementById('logRating').value) : null,
+        nextAction:       document.getElementById('logNextAction').value,
+        contactedAt:      document.getElementById('logContactedAt').value,
+        staffId:          currentUserId
+    };
+    fetch(`/api/after-sales/reminders/${reminderId}/logs?userId=${currentUserId}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', ...authHeaders()},
+        body: JSON.stringify(payload)
+    }).then(r => r.json()).then(res => {
+        if (res.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalLogContact')).hide();
+            showToast(res.message || 'Đã ghi nhận liên hệ', 'success');
+            refreshAll();
+        } else {
+            showToast(res.message || 'Lỗi ghi nhận', 'danger');
+        }
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODAL — MARK DONE
+═══════════════════════════════════════════════════════════════ */
+function openDoneModal(reminderId) {
+    document.getElementById('doneReminderId').value = reminderId;
+    document.getElementById('doneWithLog').checked  = false;
+    document.getElementById('doneLogSection').classList.add('d-none');
+    document.getElementById('doneContactType').value = '';
+    document.getElementById('doneOutcome').value     = '';
+    document.getElementById('doneContent').value     = '';
+    new bootstrap.Modal(document.getElementById('modalMarkDone')).show();
+}
+
+function toggleDoneLog() {
+    const show = document.getElementById('doneWithLog').checked;
+    document.getElementById('doneLogSection').classList.toggle('d-none', !show);
+}
+
+function submitMarkDone() {
+    const reminderId = document.getElementById('doneReminderId').value;
+    const withLog    = document.getElementById('doneWithLog').checked;
+    const payload    = { userId: currentUserId };
+    if (withLog) {
+        const ok = FormValidator.validate('modalMarkDone', [
+            { id: 'doneContactType', label: 'Hình thức', required: true },
+            { id: 'doneOutcome',     label: 'Kết quả',   required: true }
+        ]);
+        if (!ok) return;
+        payload.contactType = document.getElementById('doneContactType').value;
+        payload.outcome     = document.getElementById('doneOutcome').value;
+        payload.content     = document.getElementById('doneContent').value;
+    }
+    fetch(`/api/after-sales/reminders/${reminderId}/done`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json', ...authHeaders()},
+        body: JSON.stringify(payload)
+    }).then(r => r.json()).then(res => {
+        if (res.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalMarkDone')).hide();
+            showToast('Đã đánh dấu hoàn thành', 'success');
+            refreshAll();
+        } else {
+            showToast(res.message || 'Lỗi', 'danger');
+        }
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODAL — SKIP
+═══════════════════════════════════════════════════════════════ */
+function openSkipModal(reminderId) {
+    document.getElementById('skipReminderId').value = reminderId;
+    document.getElementById('skipReason').value     = '';
+    document.getElementById('skipStatus').value     = 'SKIPPED';
+    new bootstrap.Modal(document.getElementById('modalSkip')).show();
+}
+
+function submitSkip() {
+    const reminderId = document.getElementById('skipReminderId').value;
+    const reason     = document.getElementById('skipReason').value.trim();
+    const ok = FormValidator.validate('modalSkip', [
+        { id: 'skipReason', label: 'Lý do bỏ qua', required: true }
+    ]);
+    if (!ok) return;
+    const payload = {
+        reason,
+        status: document.getElementById('skipStatus').value,
+        userId: currentUserId
+    };
+    fetch(`/api/after-sales/reminders/${reminderId}/skip`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json', ...authHeaders()},
+        body: JSON.stringify(payload)
+    }).then(r => r.json()).then(res => {
+        if (res.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalSkip')).hide();
+            showToast('Đã bỏ qua reminder', 'warning');
+            refreshAll();
+        } else {
+            showToast(res.message || 'Lỗi', 'danger');
+        }
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODAL — CREATE MANUAL
+═══════════════════════════════════════════════════════════════ */
+function openCreateModal() {
+    document.getElementById('createOrderId').value    = '';
+    document.getElementById('createReminderDate').value = '';
+    document.getElementById('createPriority').value  = 'MEDIUM';
+    document.getElementById('createStaffId').value    = '';
+    document.getElementById('createCareNotes').value  = '';
+    new bootstrap.Modal(document.getElementById('modalCreate')).show();
+}
+
+function submitCreate() {
+    const orderId = document.getElementById('createOrderId').value;
+    const date    = document.getElementById('createReminderDate').value;
+    const ok = FormValidator.validate('modalCreate', [
+        { id: 'createOrderId',      label: 'Mã đơn hàng', required: true, type: 'number', min: 1 },
+        { id: 'createReminderDate', label: 'Ngày nhắc',    required: true }
+    ]);
+    if (!ok) return;
+    const staffId = document.getElementById('createStaffId').value;
+    const payload = {
+        orderId:         parseInt(orderId),
+        reminderDate:    date,
+        reminderType:    'CUSTOM',
+        priority:        document.getElementById('createPriority').value,
+        careNotes:       document.getElementById('createCareNotes').value,
+        assignedStaffId: staffId ? parseInt(staffId) : null
+    };
+    fetch(`/api/after-sales/reminders?userId=${currentUserId}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', ...authHeaders()},
+        body: JSON.stringify(payload)
+    }).then(r => r.json()).then(res => {
+        if (res.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalCreate')).hide();
+            showToast('Đã tạo reminder thành công', 'success');
+            refreshAll();
+        } else {
+            showToast(res.message || 'Lỗi tạo reminder', 'danger');
+        }
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════════════════ */
+function refreshAll() {
+    loadOverviewStats();
+    if (currentDayFilter) loadTodayReminders();
+}
+
+function authHeaders() {
+    const token = window.getStoredAuthToken
+        ? window.getStoredAuthToken()
+        : (localStorage.getItem('auth_token') || localStorage.getItem('authToken') || localStorage.getItem('token'));
+    return token ? {Authorization: 'Bearer ' + token} : {};
+}
+
+function esc(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;');
+}
+
+function fmtDate(d) {
+    if (!d) return '–';
+    try { return new Date(d + 'T00:00:00').toLocaleDateString('vi-VN'); } catch(_) { return d; }
+}
+
+function fmtDateTime(dt) {
+    if (!dt) return '–';
+    try { return new Date(dt).toLocaleString('vi-VN', {hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'}); }
+    catch(_) { return dt; }
+}
+
+function renderStars(rating) {
+    if (!rating) return '<span class="text-muted" style="font-size:12px;">–</span>';
+    let s = '';
+    for (let i = 1; i <= 5; i++)
+        s += `<i class="${i <= rating ? 'fas' : 'far'} fa-star star${i <= rating ? '' : '-empty'}"></i>`;
+    return s;
+}
+
+function setRating(val) {
+    document.getElementById('logRating').value = val > 0 ? val : '';
+    document.querySelectorAll('#starRating .star-select').forEach((el, i) => {
+        el.style.color = (i+1) <= val ? '#ffc107' : '#dee2e6';
+    });
+}
+
+function renderPagination(containerId, currentPage, totalPages, callbackFn) {
+    const ul = document.getElementById(containerId);
+    if (!ul) return;
+    if (totalPages <= 1) { ul.innerHTML = ''; return; }
+    let html = '';
+    html += `<li class="page-item${currentPage===0?' disabled':''}">
+        <a class="page-link" href="#" onclick="${callbackFn}(${currentPage-1});return false;">&laquo;</a></li>`;
+    const start = Math.max(0, currentPage - 2);
+    const end   = Math.min(totalPages - 1, currentPage + 2);
+    for (let i = start; i <= end; i++) {
+        html += `<li class="page-item${i===currentPage?' active':''}">
+            <a class="page-link" href="#" onclick="${callbackFn}(${i});return false;">${i+1}</a></li>`;
+    }
+    html += `<li class="page-item${currentPage===totalPages-1?' disabled':''}">
+        <a class="page-link" href="#" onclick="${callbackFn}(${currentPage+1});return false;">&raquo;</a></li>`;
+    ul.innerHTML = html;
+}
+
+function showToast(msg, type='success') {
+    if (window.showAppToast) {
+        window.showAppToast(msg, type);
+        return;
+    }
+    const div = document.createElement('div');
+    div.className = `alert alert-${type} position-fixed shadow`;
+    div.style.cssText = 'top:20px;right:20px;z-index:9999;min-width:260px;';
+    div.textContent = msg;
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 3500);
+}
+</script>
+
+</body>
+</html>

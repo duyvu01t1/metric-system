@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Metric System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .settings-container {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .settings-sidebar {
+            background: white;
+            border-radius: 8px;
+            padding: 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        .settings-category {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .settings-category:hover {
+            background-color: #f5f5f5;
+        }
+        .settings-category.active {
+            background-color: #007bff;
+            color: white;
+            border-left: 4px solid #0056b3;
+        }
+        .settings-content {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .setting-item {
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            background: #f9f9f9;
+        }
+        .setting-item.editable {
+            background: #f0f8ff;
+            border-color: #007bff;
+        }
+        .setting-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .setting-description {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .setting-input {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .setting-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .setting-footer {
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid mt-4">
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <h2><i class="fas fa-cog"></i> Settings</h2>
+                <p class="text-muted">Manage system configuration and preferences</p>
+            </div>
+        </div>
+
+        <div class="alert alert-danger alert-dismissible fade hide" id="errorAlert" role="alert">
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <span id="errorMessage"></span>
+        </div>
+
+        <div class="alert alert-success alert-dismissible fade hide" id="successAlert" role="alert">
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <span id="successMessage"></span>
+        </div>
+
+        <div class="settings-container">
+            <!-- Settings Sidebar -->
+            <div class="settings-sidebar">
+                <div class="settings-category active" onclick="switchCategory('GENERAL')">
+                    <i class="fas fa-sliders-h"></i> General
+                </div>
+                <div class="settings-category" onclick="switchCategory('BUSINESS')">
+                    <i class="fas fa-store"></i> Business
+                </div>
+                <div class="settings-category" onclick="switchCategory('EMAIL')">
+                    <i class="fas fa-envelope"></i> Email
+                </div>
+                <div class="settings-category" onclick="switchCategory('PAYMENT')">
+                    <i class="fas fa-credit-card"></i> Payment
+                </div>
+                <div class="settings-category" onclick="switchCategory('SYSTEM')">
+                    <i class="fas fa-server"></i> System
+                </div>
+            </div>
+
+            <!-- Settings Content -->
+            <div class="settings-content">
+                <h4 id="categoryTitle">General Settings</h4>
+                <p id="categoryDescription" class="text-muted"></p>
+                
+                <div id="settingsContainer">
+                    <p class="text-center">Loading settings...</p>
+                </div>
+
+                <div class="setting-footer">
+                    <button class="btn btn-primary" onclick="saveAllSettings()">
+                        <i class="fas fa-save"></i> Save All Changes
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetSettings()">
+                        <i class="fas fa-undo"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="settings-content mt-4">
+            <h4 class="text-danger"><i class="fas fa-exclamation-triangle"></i> Danger Zone</h4>
+            <p class="text-muted">Advanced operations - use with caution</p>
+            
+            <div class="setting-item" style="border-color: #dc3545; background: #fff5f5;">
+                <div class="setting-label">Reset to Default Settings</div>
+                <p class="text-muted">Reset all settings to factory defaults</p>
+                <button class="btn btn-danger btn-sm" onclick="resetAllDefaults()">
+                    <i class="fas fa-rotate-left"></i> Reset All
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script th:src="@{/js/settings.js}"></script>
+</body>
+</html>

@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Metric System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/lux/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <style>
+        .avatar-initials {
+            width: 38px; height: 38px; border-radius: 50%;
+            background: linear-gradient(135deg, #1976d2, #7b1fa2);
+            color: #fff; font-weight: 700; font-size: 15px;
+            align-items: center; justify-content: center;
+            flex-shrink: 0; user-select: none;
+        }
+        #userProfileTrigger:hover .user-meta span { text-decoration: underline; }
+        #userProfileTrigger:hover .avatar,
+        #userProfileTrigger:hover .avatar-initials { opacity: .85; }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar" th:fragment="sidebar">
+            <div class="sidebar-header">
+                <div class="brand-shell">
+                    <div class="brand-icon"><i class="fas fa-scissors"></i></div>
+                    <div>
+                        <h3>Metric System</h3>
+                        <div class="brand-subtitle">Tailoring ERP Workspace</div>
+                    </div>
+                </div>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="javascript:void(0)" class="nav-link active" data-page="dashboard" onclick="navigateTo('dashboard', event)"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+                <li class="divider"></li>
+                <li class="nav-section-label" style="padding:6px 15px;font-size:11px;color:#aaa;text-transform:uppercase;font-weight:600;">Bán hàng</li>
+                <li><a href="javascript:void(0)" class="nav-link" data-page="leads" onclick="navigateTo('leads', event)"><i class="fas fa-satellite-dish"></i> Tiếp nhận (Leads)</a></li>
+                <li><a href="javascript:void(0)" class="nav-link" data-page="crm" onclick="navigateTo('crm', event)"><i class="fas fa-users-cog"></i> CRM &amp; Nhân viên</a></li>
+                <li><a href="javascript:void(0)" class="nav-link" data-page="customers" onclick="navigateTo('customers', event)"><i class="fas fa-users"></i> Khách hàng</a></li>
+                <li><a href="javascript:void(0)" class="nav-link" data-page="quotation" onclick="navigateTo('quotation', event)"><i class="fas fa-file-invoice-dollar"></i> Báo giá &amp; Đặt cọc</a></li>
+                <li><a href="javascript:void(0)" class="nav-link" data-page="orders" onclick="navigateTo('orders', event)"><i class="fas fa-clipboard-list"></i> Đơn hàng</a></li>
+                <li><a href="javascript:void(0)" class="nav-link" data-page="production" onclick="navigateTo('production', event)"><i class="fas fa-industry"></i> Sản xuất &amp; Tiến độ</a></li>
+                <li><a href="javascript:void(0)" class="nav-link" data-page="qc" onclick="navigateTo('qc', event)"><i class="fas fa-clipboard-check"></i> QC &amp; Giao hàng</a></li>
+                <li><a href="javascript:void(0)" class="nav-link" data-page="aftersales" onclick="navigateTo('aftersales', event)"><i class="fas fa-heart"></i> Chăm sóc Sau Bán</a></li>
+                <li><a href="javascript:void(0)" class="nav-link" data-page="finance" onclick="navigateTo('finance', event)"><i class="fas fa-coins"></i> Tài chính &amp; Hoa hồng</a></li>
+                <li><a href="javascript:void(0)" class="nav-link" data-page="measurements" onclick="navigateTo('measurements', event)"><i class="fas fa-ruler"></i> Số đo</a></li>
+                <li><a href="javascript:void(0)" class="nav-link" data-page="payments" onclick="navigateTo('payments', event)"><i class="fas fa-credit-card"></i> Thanh toán</a></li>
+                <li class="divider"></li>
+                <li class="nav-section-label" style="padding:6px 15px;font-size:11px;color:#aaa;text-transform:uppercase;font-weight:600;">Quản lý</li>
+                <li><a href="javascript:void(0)" class="nav-link" data-page="reports" onclick="navigateTo('reports', event)"><i class="fas fa-file-alt"></i> Báo cáo</a></li>
+                <li><a href="javascript:void(0)" class="nav-link" data-page="settings" onclick="navigateTo('settings', event)"><i class="fas fa-cog"></i> Cài đặt</a></li>
+                <li><a href="javascript:void(0)" class="nav-link" onclick="handleLogout(event)"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <button id="toggleSidebar" class="btn btn-light btn-sm btn-icon">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div>
+                        <h1>Dashboard</h1>
+                        <div class="header-subtitle">Theo dõi vận hành, đơn hàng và hiệu suất theo thời gian thực</div>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <button id="themeToggle" class="btn btn-light btn-sm btn-icon theme-toggle" type="button" title="Switch theme" aria-label="Switch theme">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <div class="workspace-pill">
+                        <i class="fas fa-sparkles"></i>
+                        <span>Live workspace</span>
+                    </div>
+                    <div class="user-info" id="userProfileTrigger" onclick="openProfileOffcanvas()" title="Xem / chỉnh sửa hồ sơ" style="cursor:pointer;" role="button" aria-label="User profile">
+                        <img id="userAvatar" th:src="@{/img/default-avatar.png}" onerror="this.style.display='none';document.getElementById('userAvatarInitials').style.display='flex';" alt="User Avatar" class="avatar">
+                        <div id="userAvatarInitials" class="avatar avatar-initials" style="display:none;"></div>
+                        <div class="user-meta">
+                            <small>Xin chào</small>
+                            <span id="userName">User Name</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Content -->
+            <div id="contentWrapper" class="dashboard-content">
+                <div class="card dashboard-hero mb-4 border-0">
+                    <div class="card-body">
+                        <div class="row align-items-center g-4">
+                            <div class="col-lg-8">
+                                <span class="hero-badge"><i class="fas fa-wave-square me-2"></i>Executive overview</span>
+                                <h2 class="hero-title">Vận hành may đo tinh gọn, trực quan và cao cấp hơn</h2>
+                                <p class="hero-text">Theo dõi toàn bộ khách hàng, đơn hàng, thanh toán và hiệu suất đội ngũ trên một không gian quản trị tập trung, mượt và giàu tương tác.</p>
+                                <div class="hero-actions">
+                                    <button class="btn btn-primary" onclick="navigateTo('quotation', event)"><i class="fas fa-plus me-1"></i>Tạo báo giá</button>
+                                    <button class="btn btn-outline-primary" onclick="navigateTo('orders', event)"><i class="fas fa-layer-group me-1"></i>Xem đơn hàng</button>
+                                    <button class="btn btn-outline-primary" onclick="navigateTo('customers', event)"><i class="fas fa-users me-1"></i>Khách hàng</button>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="hero-panel">
+                                    <div class="hero-panel-label">Today focus</div>
+                                    <div class="hero-panel-value" id="heroOrdersValue">0</div>
+                                    <div class="hero-panel-sub" id="heroOrdersSub">đơn hàng đang theo dõi hôm nay</div>
+                                    <div class="hero-chip-list">
+                                        <span class="hero-chip"><i class="fas fa-bolt"></i>Realtime</span>
+                                        <span class="hero-chip"><i class="fas fa-shield-heart"></i>Stable</span>
+                                        <span class="hero-chip"><i class="fas fa-chart-line"></i>Insight</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-4 g-3">
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card stat-card stat-card-customers">
+                            <div class="card-body">
+                                <div class="stat-card-top">
+                                    <div>
+                                        <h5 class="card-title">Total Customers</h5>
+                                        <h2 id="totalCustomers" class="card-text stat-value" data-value="0" data-format="number">0</h2>
+                                    </div>
+                                    <div class="stat-icon"><i class="fas fa-users"></i></div>
+                                </div>
+                                <div class="stat-footnote">Khách hàng đang được quản lý</div>
+                                <div class="sparkline-wrap"><canvas id="customersSparkline" class="sparkline-chart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card stat-card stat-card-orders">
+                            <div class="card-body">
+                                <div class="stat-card-top">
+                                    <div>
+                                        <h5 class="card-title">Active Orders</h5>
+                                        <h2 id="activeOrders" class="card-text stat-value" data-value="0" data-format="number">0</h2>
+                                    </div>
+                                    <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
+                                </div>
+                                <div class="stat-footnote">Đơn hàng đang xử lý</div>
+                                <div class="sparkline-wrap"><canvas id="ordersSparkline" class="sparkline-chart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card stat-card stat-card-payments">
+                            <div class="card-body">
+                                <div class="stat-card-top">
+                                    <div>
+                                        <h5 class="card-title">Pending Payments</h5>
+                                        <h2 id="pendingPayments" class="card-text stat-value" data-value="0" data-format="currency">$0.00</h2>
+                                    </div>
+                                    <div class="stat-icon"><i class="fas fa-wallet"></i></div>
+                                </div>
+                                <div class="stat-footnote">Giá trị công nợ chờ thu</div>
+                                <div class="sparkline-wrap"><canvas id="paymentsSparkline" class="sparkline-chart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <div class="card stat-card stat-card-completed">
+                            <div class="card-body">
+                                <div class="stat-card-top">
+                                    <div>
+                                        <h5 class="card-title">Completed Orders</h5>
+                                        <h2 id="completedOrders" class="card-text stat-value" data-value="0" data-format="number">0</h2>
+                                    </div>
+                                    <div class="stat-icon"><i class="fas fa-circle-check"></i></div>
+                                </div>
+                                <div class="stat-footnote">Đơn đã hoàn tất thành công</div>
+                                <div class="sparkline-wrap"><canvas id="completedSparkline" class="sparkline-chart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Recent Orders</h5>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Order Code</th>
+                                            <th>Customer</th>
+                                            <th>Status</th>
+                                            <th>Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recentOrdersTable">
+                                        <tr>
+                                            <td colspan="4" class="text-center">Loading...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Order Status Distribution</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="statusChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="appToastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         USER PROFILE OFFCANVAS
+         ═══════════════════════════════════════════════════════════ -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="profileOffcanvas" aria-labelledby="profileOffcanvasLabel" style="width:420px;max-width:98vw;">
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title fw-bold" id="profileOffcanvasLabel">
+                <i class="fas fa-user-circle me-2 text-primary"></i>Hồ sơ cá nhân
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+            <!-- Avatar section -->
+            <div class="text-center py-4 px-3 border-bottom" style="background:linear-gradient(135deg,rgba(25,118,210,.07),rgba(123,31,162,.05))">
+                <div class="position-relative d-inline-block mb-3">
+                    <img id="profileAvatarImg" src="" onerror="this.style.display='none';document.getElementById('profileAvatarInitials').style.display='flex';" alt="Avatar"
+                         class="rounded-circle border border-3 border-white shadow-sm"
+                         style="width:84px;height:84px;object-fit:cover;">
+                    <div id="profileAvatarInitials" class="rounded-circle border border-3 border-white shadow-sm d-flex align-items-center justify-content-center fw-bold text-white"
+                         style="width:84px;height:84px;font-size:28px;display:none!important;background:linear-gradient(135deg,#1976d2,#7b1fa2);"></div>
+                </div>
+                <div class="fw-semibold fs-6" id="profileFullName">—</div>
+                <small class="text-muted" id="profileUsername">—</small>
+                <div class="mt-2" id="profileRolesBadges"></div>
+            </div>
+
+            <!-- Tab navigation -->
+            <ul class="nav nav-pills nav-fill border-bottom px-3 pt-2 pb-1 gap-1" id="profileTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active rounded-2" id="tab-info" data-bs-toggle="pill" data-bs-target="#pane-info" type="button" role="tab">
+                        <i class="fas fa-id-card me-1"></i>Thông tin
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link rounded-2" id="tab-password" data-bs-toggle="pill" data-bs-target="#pane-password" type="button" role="tab">
+                        <i class="fas fa-lock me-1"></i>Đổi mật khẩu
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content px-3 py-3" id="profileTabContent">
+                <!-- ── TAB: Thông tin cá nhân ── -->
+                <div class="tab-pane fade show active" id="pane-info" role="tabpanel">
+                    <form id="profileForm" novalidate>
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <label class="form-label form-label-sm mb-1 fw-semibold">Tên</label>
+                                <input type="text" class="form-control form-control-sm" id="pfFirstName" maxlength="100" placeholder="Tên">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label form-label-sm mb-1 fw-semibold">Họ</label>
+                                <input type="text" class="form-control form-control-sm" id="pfLastName" maxlength="100" placeholder="Họ">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label form-label-sm mb-1 fw-semibold">Email</label>
+                                <input type="email" class="form-control form-control-sm" id="pfEmail" maxlength="255" placeholder="email@example.com">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label form-label-sm mb-1 fw-semibold">Số điện thoại</label>
+                                <input type="tel" class="form-control form-control-sm" id="pfPhone" maxlength="20" placeholder="+84...">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label form-label-sm mb-1 fw-semibold">URL ảnh đại diện</label>
+                                <input type="url" class="form-control form-control-sm" id="pfAvatarUrl" maxlength="500" placeholder="https://...">
+                                <div class="form-text">Để trống nếu muốn dùng avatar chữ cái tự động.</div>
+                            </div>
+                            <!-- Read-only info -->
+                            <div class="col-12">
+                                <hr class="my-1">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="text-muted small fw-semibold" style="min-width:110px">Tên đăng nhập:</span>
+                                    <span class="small" id="pfUsernameRo">—</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="text-muted small fw-semibold" style="min-width:110px">Phương thức:</span>
+                                    <span class="small" id="pfProvider">—</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="text-muted small fw-semibold" style="min-width:110px">Đăng nhập lần cuối:</span>
+                                    <span class="small" id="pfLastLogin">—</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="text-muted small fw-semibold" style="min-width:110px">Tạo tài khoản:</span>
+                                    <span class="small" id="pfCreatedAt">—</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="profileFormError" class="alert alert-danger mt-3 py-2 d-none small"></div>
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="button" class="btn btn-primary btn-sm flex-grow-1" onclick="saveProfileChanges()">
+                                <i class="fas fa-save me-1"></i>Lưu thay đổi
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetProfileForm()">
+                                <i class="fas fa-rotate-left me-1"></i>Hoàn tác
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- ── TAB: Đổi mật khẩu ── -->
+                <div class="tab-pane fade" id="pane-password" role="tabpanel">
+                    <div id="pwOAuthNotice" class="alert alert-info py-2 small d-none">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Tài khoản đăng nhập bằng OAuth (<span id="pwOAuthProvider"></span>). Đặt mật khẩu mới mà không cần nhập mật khẩu hiện tại.
+                    </div>
+                    <form id="passwordForm" novalidate>
+                        <div class="mb-3" id="pwCurrentGroup">
+                            <label class="form-label form-label-sm mb-1 fw-semibold">Mật khẩu hiện tại</label>
+                            <div class="input-group input-group-sm">
+                                <input type="password" class="form-control" id="pwCurrent" autocomplete="current-password" placeholder="Mật khẩu đang dùng">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePwVisibility('pwCurrent', this)"><i class="fas fa-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label form-label-sm mb-1 fw-semibold">Mật khẩu mới</label>
+                            <div class="input-group input-group-sm">
+                                <input type="password" class="form-control" id="pwNew" autocomplete="new-password" minlength="6" placeholder="Tối thiểu 6 ký tự">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePwVisibility('pwNew', this)"><i class="fas fa-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label form-label-sm mb-1 fw-semibold">Xác nhận mật khẩu mới</label>
+                            <div class="input-group input-group-sm">
+                                <input type="password" class="form-control" id="pwConfirm" autocomplete="new-password" placeholder="Nhập lại mật khẩu mới">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePwVisibility('pwConfirm', this)"><i class="fas fa-eye"></i></button>
+                            </div>
+                        </div>
+                        <div id="pwFormError" class="alert alert-danger py-2 small d-none"></div>
+                        <div id="pwFormSuccess" class="alert alert-success py-2 small d-none"></div>
+                        <button type="button" class="btn btn-warning btn-sm w-100" onclick="changeUserPassword()">
+                            <i class="fas fa-key me-1"></i>Đổi mật khẩu
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script th:src="@{/js/dashboard.js}"></script>
+</body>
+</html>

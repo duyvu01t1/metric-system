@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QC &amp; Giao hàng - Metric System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        /* ─── Stats ──────────────────────────────────────────────── */
+        .stat-card { border-radius:12px;padding:18px 20px;color:#fff; }
+        .stat-card .val { font-size:26px;font-weight:700; }
+        .stat-card .lbl { font-size:12px;opacity:.85; }
+
+        /* ─── QC Item row ──────────────────────────────────────────── */
+        .qc-item-row td { vertical-align:middle;font-size:13.5px; }
+        .qc-result-radio label { cursor:pointer; }
+
+        /* ─── Badge variants ───────────────────────────────────────── */
+        .badge-PENDING       { background:#9e9e9e;color:#fff; }
+        .badge-IN_PROGRESS   { background:#1976d2;color:#fff; }
+        .badge-PASSED        { background:#43a047;color:#fff; }
+        .badge-FAILED        { background:#e53935;color:#fff; }
+        .badge-SCHEDULED     { background:#7b1fa2;color:#fff; }
+        .badge-OUT_FOR_DELIVERY { background:#f57c00;color:#fff; }
+        .badge-DELIVERED     { background:#388e3c;color:#fff; }
+        .badge-RETURNED      { background:#b71c1c;color:#fff; }
+        .badge-CANCELLED     { background:#616161;color:#fff; }
+        .badge-PASS          { background:#43a047;color:#fff; }
+        .badge-FAIL          { background:#e53935;color:#fff; }
+        .badge-NA            { background:#bdbdbd;color:#fff; }
+
+        /* ─── Tab ──────────────────────────────────────────────────── */
+        .nav-tabs .nav-link { color:#495057; }
+        .nav-tabs .nav-link.active { color:#0d6efd;font-weight:600; }
+
+        /* ─── Detail panel ─────────────────────────────────────────── */
+        #detailPanel {
+            position:fixed;top:0;right:-480px;width:480px;height:100vh;
+            background:#fff;box-shadow:-4px 0 20px rgba(0,0,0,.15);
+            z-index:1050;transition:right .3s ease;overflow-y:auto;
+        }
+        #detailPanel.open { right:0; }
+
+        /* ─── Item result buttons ──────────────────────────────────── */
+        .btn-result { min-width:56px;font-size:12px; }
+        .btn-result.active-PASS { background:#43a047;color:#fff;border-color:#43a047; }
+        .btn-result.active-FAIL { background:#e53935;color:#fff;border-color:#e53935; }
+        .btn-result.active-NA   { background:#9e9e9e;color:#fff;border-color:#9e9e9e; }
+
+        /* ─── Item progress bar ─────────────────────────────────────── */
+        .qc-progress { height:8px;border-radius:4px;overflow:hidden;background:#eee; }
+        .qc-progress-fill { height:100%;background:#43a047;transition:width .3s; }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{dashboard :: sidebar}"></div>
+
+<div class="main-content" id="mainContent">
+
+    <!-- ─── Header ─────────────────────────────────────────────────────── -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-0"><i class="fas fa-clipboard-check me-2 text-primary"></i>QC &amp; Giao hàng</h4>
+            <small class="text-muted">Kiểm soát chất lượng sản phẩm &amp; quản lý giao hàng / tất toán thanh toán</small>
+        </div>
+    </div>
+
+    <!-- ─── Stats ────────────────────────────────────────────────────────── -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#9e9e9e,#bdbdbd)">
+                <div class="lbl">Chờ kiểm tra</div>
+                <div class="val" id="statQcPending">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#1976d2,#64b5f6)">
+                <div class="lbl">Đang kiểm tra</div>
+                <div class="val" id="statQcInProgress">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#43a047,#a5d6a7)">
+                <div class="lbl">QC Đạt</div>
+                <div class="val" id="statQcPassed">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#e53935,#ef9a9a)">
+                <div class="lbl">QC Không đạt</div>
+                <div class="val" id="statQcFailed">–</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── Delivery stats ────────────────────────────────────────────────── -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#7b1fa2,#ce93d8)">
+                <div class="lbl">Đã lên lịch giao</div>
+                <div class="val" id="statDelScheduled">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#f57c00,#ffcc80)">
+                <div class="lbl">Đang giao</div>
+                <div class="val" id="statDelOut">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#388e3c,#a5d6a7)">
+                <div class="lbl">Đã giao xong</div>
+                <div class="val" id="statDelDelivered">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#b71c1c,#ef9a9a)">
+                <div class="lbl">Trả lại</div>
+                <div class="val" id="statDelReturned">–</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── Tabs ──────────────────────────────────────────────────────────── -->
+    <ul class="nav nav-tabs mb-3" id="qcTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-qc-btn" data-bs-toggle="tab" data-bs-target="#tab-qc"
+                    type="button" role="tab"><i class="fas fa-clipboard-check me-1"></i>Kiểm tra Chất lượng</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-recheck-btn" data-bs-toggle="tab" data-bs-target="#tab-recheck"
+                    type="button" role="tab"><i class="fas fa-redo me-1"></i>Re-check / Sửa lỗi</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-delivery-btn" data-bs-toggle="tab" data-bs-target="#tab-delivery"
+                    type="button" role="tab"><i class="fas fa-truck me-1"></i>Giao hàng</button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- TAB 1 — QC CHECKLIST                                           -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane fade show active" id="tab-qc" role="tabpanel">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                        <select class="form-select form-select-sm" id="filterQcStatus" style="width:160px"
+                                onchange="loadQCList()">
+                            <option value="">-- Tất cả trạng thái --</option>
+                            <option value="PENDING">Chờ kiểm tra</option>
+                            <option value="IN_PROGRESS">Đang kiểm tra</option>
+                            <option value="PASSED">Đạt</option>
+                            <option value="FAILED">Không đạt</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="openCreateQCModal()">
+                        <i class="fas fa-plus me-1"></i>Tạo Phiếu QC
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mã phiếu</th>
+                                    <th>Đơn hàng</th>
+                                    <th>Khách hàng</th>
+                                    <th class="text-center">Lần</th>
+                                    <th class="text-center">Trạng thái</th>
+                                    <th class="text-center">Kết quả</th>
+                                    <th class="text-center">Tiến trình</th>
+                                    <th>Kiểm tra bởi</th>
+                                    <th>Ngày tạo</th>
+                                    <th class="text-center">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="qcTableBody">
+                                <tr><td colspan="10" class="text-center text-muted py-3">Đang tải...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <small class="text-muted" id="qcPageInfo">–</small>
+                    <div class="d-flex gap-1" id="qcPagination"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- TAB 2 — RE-CHECK / SỬA LỖI                                     -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane fade" id="tab-recheck" role="tabpanel">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-exclamation-circle text-danger me-2"></i>
+                        Phiếu QC Không đạt — cần sửa hàng &amp; kiểm tra lại</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mã phiếu</th>
+                                    <th>Đơn hàng</th>
+                                    <th>Khách hàng</th>
+                                    <th class="text-center">Lần</th>
+                                    <th class="text-center">Số lỗi</th>
+                                    <th>Ngày kiểm</th>
+                                    <th>Ghi chú lỗi</th>
+                                    <th class="text-center">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recheckTableBody">
+                                <tr><td colspan="8" class="text-center text-muted py-3">Đang tải...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- TAB 3 — GIAO HÀNG                                              -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane fade" id="tab-delivery" role="tabpanel">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                        <select class="form-select form-select-sm" id="filterDelStatus" style="width:180px"
+                                onchange="loadDeliveryList()">
+                            <option value="">-- Tất cả trạng thái --</option>
+                            <option value="SCHEDULED">Đã lên lịch</option>
+                            <option value="OUT_FOR_DELIVERY">Đang giao</option>
+                            <option value="DELIVERED">Đã giao</option>
+                            <option value="RETURNED">Trả lại</option>
+                            <option value="CANCELLED">Đã hủy</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="openCreateDeliveryModal()">
+                        <i class="fas fa-plus me-1"></i>Tạo Phiếu Giao
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mã phiếu giao</th>
+                                    <th>Đơn hàng</th>
+                                    <th>Khách hàng</th>
+                                    <th>Người nhận</th>
+                                    <th>Phương thức</th>
+                                    <th>Ngày hẹn giao</th>
+                                    <th>Ngày giao thực</th>
+                                    <th class="text-center">Trạng thái</th>
+                                    <th class="text-end">Còn lại (VNĐ)</th>
+                                    <th class="text-center">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deliveryTableBody">
+                                <tr><td colspan="10" class="text-center text-muted py-3">Đang tải...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <small class="text-muted" id="delPageInfo">–</small>
+                    <div class="d-flex gap-1" id="delPagination"></div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /tab-content -->
+</div><!-- /main-content -->
+
+<!-- ═══════════════════════════════════ QC DETAIL PANEL ═══════════════════ -->
+<div id="detailPanel">
+    <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light">
+        <h6 class="mb-0" id="panelQcNumber">—</h6>
+        <div class="d-flex gap-2 align-items-center">
+            <span class="badge" id="panelQcStatus">–</span>
+            <button class="btn-close" onclick="closePanel()"></button>
+        </div>
+    </div>
+    <div class="p-3">
+        <div class="mb-3 small">
+            <div class="row g-2">
+                <div class="col-6">
+                    <div class="text-muted">Đơn hàng</div>
+                    <div class="fw-semibold" id="panelOrderCode">–</div>
+                </div>
+                <div class="col-6">
+                    <div class="text-muted">Khách hàng</div>
+                    <div class="fw-semibold" id="panelCustomer">–</div>
+                </div>
+                <div class="col-6">
+                    <div class="text-muted">Lần kiểm</div>
+                    <div class="fw-semibold" id="panelRound">–</div>
+                </div>
+                <div class="col-6">
+                    <div class="text-muted">Kết quả</div>
+                    <div class="fw-semibold" id="panelResult">–</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="mb-3">
+            <div class="d-flex justify-content-between small mb-1">
+                <span id="panelItemProgress">0/8 tiêu chí đã kiểm</span>
+                <span id="panelPassRate">–</span>
+            </div>
+            <div class="qc-progress">
+                <div class="qc-progress-fill" id="panelProgressBar" style="width:0%"></div>
+            </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="d-flex gap-2 flex-wrap mb-3" id="panelActions"></div>
+
+        <!-- Items table -->
+        <h6 class="fw-semibold border-bottom pb-2 mb-2">Danh sách tiêu chí</h6>
+        <div id="panelItemsContainer">
+            <p class="text-muted small">Chưa có tiêu chí.</p>
+        </div>
+
+        <!-- Overall notes -->
+        <div id="panelNotesSection" style="display:none" class="mt-3">
+            <div class="mb-2">
+                <label class="form-label small fw-semibold">Ghi chú tổng hợp</label>
+                <textarea class="form-control form-control-sm" id="panelOverallNotes" rows="2"></textarea>
+            </div>
+            <div class="mb-2">
+                <label class="form-label small fw-semibold">Ghi chú nội bộ</label>
+                <textarea class="form-control form-control-sm" id="panelInternalNotes" rows="2"></textarea>
+            </div>
+            <button class="btn btn-success btn-sm w-100" onclick="doFinalizeQC()">
+                <i class="fas fa-check-circle me-1"></i>Tổng hợp &amp; Kết luận
+            </button>
+        </div>
+    </div>
+</div>
+<div id="panelOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:1049"
+     onclick="closePanel()"></div>
+
+<!-- ═══════════════════════════════════ MODALS ════════════════════════════ -->
+
+<!-- Modal: Tạo phiếu QC -->
+<div class="modal fade" id="modalCreateQC" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">Tạo Phiếu Kiểm tra Chất lượng</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label small">Mã đơn hàng (orderId)</label>
+                    <input type="number" class="form-control form-control-sm" id="createQcOrderId"
+                           placeholder="Nhập ID đơn hàng">
+                    <div class="form-text">Nhập ID đơn hàng cần kiểm tra. Hệ thống sẽ tự tạo 8 tiêu chí mặc định.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="doCreateQC()">
+                    <i class="fas fa-plus me-1"></i>Tạo phiếu
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Override QC -->
+<div class="modal fade" id="modalOverrideQC" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h6 class="modal-title">Override Kết quả QC</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="overrideQcId">
+                <div class="mb-3">
+                    <label class="form-label small">Kết quả override</label>
+                    <select class="form-select form-select-sm" id="overrideResult">
+                        <option value="PASS">PASS — Đạt chất lượng</option>
+                        <option value="FAIL">FAIL — Không đạt</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small">Lý do override (bắt buộc)</label>
+                    <textarea class="form-control form-control-sm" id="overrideNotes" rows="3"
+                              placeholder="Ghi rõ lý do..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-warning btn-sm" onclick="doOverrideQC()">
+                    <i class="fas fa-edit me-1"></i>Override
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Tạo phiếu giao hàng -->
+<div class="modal fade" id="modalCreateDelivery" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">Tạo Phiếu Giao hàng</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info small py-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Chỉ tạo được phiếu giao khi đơn hàng đã có QC <strong>Đạt chất lượng</strong>.
+                </div>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label small">ID Đơn hàng <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control form-control-sm" id="delOrderId"
+                               placeholder="Nhập ID đơn hàng">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Ngày hẹn giao <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control form-control-sm" id="delScheduledDate">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Phương thức giao</label>
+                        <select class="form-select form-select-sm" id="delMethod">
+                            <option value="PICKUP">Khách tự đến lấy</option>
+                            <option value="SHIP">Gửi qua vận chuyển</option>
+                            <option value="STAFF_DELIVERY">Nhân viên đem tới</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Tên người nhận</label>
+                        <input type="text" class="form-control form-control-sm" id="delRecipientName"
+                               placeholder="Mặc định là tên khách hàng">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">SĐT người nhận</label>
+                        <input type="text" class="form-control form-control-sm" id="delRecipientPhone"
+                               placeholder="Số điện thoại">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Địa chỉ giao (nếu gửi)</label>
+                        <input type="text" class="form-control form-control-sm" id="delAddress"
+                               placeholder="Địa chỉ cụ thể...">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Ghi chú</label>
+                        <textarea class="form-control form-control-sm" id="delNotes" rows="2"
+                                  placeholder="Ghi chú thêm..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="doCreateDelivery()">
+                    <i class="fas fa-truck me-1"></i>Tạo phiếu giao
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Xác nhận giao & tất toán -->
+<div class="modal fade" id="modalConfirmDelivered" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h6 class="modal-title">Xác nhận Giao thành công &amp; Tất toán</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="confirmDelId">
+                <div class="alert alert-warning small py-2">
+                    <i class="fas fa-coins me-1"></i>
+                    Nhập số tiền thu được khi giao. Hệ thống sẽ tự ghi nhận thanh toán và cập nhật trạng thái đơn hàng → <strong>COMPLETED</strong>.
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small">Số tiền thu (VNĐ)</label>
+                        <input type="number" class="form-control form-control-sm" id="confirmAmount"
+                               placeholder="0 nếu đã thanh toán đủ" min="0">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Phương thức</label>
+                        <select class="form-select form-select-sm" id="confirmPayMethod">
+                            <option value="CASH">Tiền mặt</option>
+                            <option value="BANK_TRANSFER">Chuyển khoản</option>
+                            <option value="MOMO">MoMo</option>
+                            <option value="CARD">Thẻ</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Ghi chú</label>
+                        <textarea class="form-control form-control-sm" id="confirmNotes" rows="2"
+                                  placeholder="Ghi chú..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-success btn-sm" onclick="doConfirmDelivered()">
+                    <i class="fas fa-check-circle me-1"></i>Xác nhận đã giao
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Trả lại -->
+<div class="modal fade" id="modalReturn" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">Đánh dấu Trả lại</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="returnDelId">
+                <div class="mb-3">
+                    <label class="form-label small">Lý do trả lại <span class="text-danger">*</span></label>
+                    <textarea class="form-control form-control-sm" id="returnNotes" rows="3"
+                              placeholder="Mô tả lý do khách trả lại..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="doMarkReturned()">
+                    <i class="fas fa-undo me-1"></i>Xác nhận trả lại
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════ SCRIPTS ════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script th:src="@{/js/auth.js}"></script>
+<script th:src="@{/js/form-validator.js}"></script>
+
+<script>
+var BASE = '/api';
+var CURRENT_USER_ID = 1; // TODO: replace with session user id from auth
+var qcCurrentPage = 0;
+var delCurrentPage = 0;
+var activePanelQcId = null;
+
+// ─── Bootstrap modal instances ────────────────────────────────────────────
+var modalCreateQC        = new bootstrap.Modal(document.getElementById('modalCreateQC'));
+var modalOverrideQC      = new bootstrap.Modal(document.getElementById('modalOverrideQC'));
+var modalCreateDelivery  = new bootstrap.Modal(document.getElementById('modalCreateDelivery'));
+var modalConfirm         = new bootstrap.Modal(document.getElementById('modalConfirmDelivered'));
+var modalReturn          = new bootstrap.Modal(document.getElementById('modalReturn'));
+
+// ════════════════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════════════════
+$(document).ready(function() {
+    loadStats();
+    loadQCList();
+
+    // Also load other tabs when clicked for the first time
+    $('#tab-recheck-btn').on('shown.bs.tab', function() { loadRecheckList(); });
+    $('#tab-delivery-btn').on('shown.bs.tab', function() { loadDeliveryList(); });
+});
+
+function loadStats() {
+    $.get(BASE + '/qc/overview', function(res) {
+        if (res.success) {
+            const d = res.data;
+            $('#statQcPending').text(d.PENDING || 0);
+            $('#statQcInProgress').text(d.IN_PROGRESS || 0);
+            $('#statQcPassed').text(d.PASSED || 0);
+            $('#statQcFailed').text(d.FAILED || 0);
+        }
+    });
+    $.get(BASE + '/delivery/overview', function(res) {
+        if (res.success) {
+            const d = res.data;
+            $('#statDelScheduled').text(d.SCHEDULED || 0);
+            $('#statDelOut').text(d.OUT_FOR_DELIVERY || 0);
+            $('#statDelDelivered').text(d.DELIVERED || 0);
+            $('#statDelReturned').text(d.RETURNED || 0);
+        }
+    });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TAB 1 — QC CHECKLIST
+// ════════════════════════════════════════════════════════════════════════════
+
+function loadQCList(page) {
+    if (page !== undefined) qcCurrentPage = page;
+    const status = $('#filterQcStatus').val();
+    let url = BASE + '/qc?page=' + qcCurrentPage + '&size=15&sort=createdAt,desc';
+    if (status) url += '&status=' + status;
+
+    $.get(url, function(res) {
+        if (!res.success) return;
+        const p = res.data;
+        const rows = p.content.map(qc => buildQcRow(qc)).join('');
+        $('#qcTableBody').html(rows || '<tr><td colspan="10" class="text-center text-muted py-3">Không có dữ liệu</td></tr>');
+        $('#qcPageInfo').text('Trang ' + (p.number + 1) + ' / ' + (p.totalPages || 1) + ' — Tổng ' + p.totalElements + ' phiếu');
+        buildQcPagination(p.number, p.totalPages);
+    });
+}
+
+function buildQcRow(qc) {
+    const statusBadge = `<span class="badge badge-${qc.status} rounded-pill">${qc.statusLabel || qc.status}</span>`;
+    const resultBadge = qc.overallResult
+        ? `<span class="badge badge-${qc.overallResult} rounded-pill">${qc.overallResultLabel || qc.overallResult}</span>`
+        : '<span class="text-muted small">—</span>';
+
+    const done = (qc.passCount || 0) + (qc.failCount || 0);
+    const total = qc.totalItems || 8;
+    const pct = total > 0 ? Math.round(done / total * 100) : 0;
+    const bar = `<div class="qc-progress" style="width:80px;display:inline-block">
+        <div class="qc-progress-fill" style="width:${pct}%;background:${qc.failCount > 0 ? '#e53935' : '#43a047'}"></div>
+    </div> <small>${done}/${total}</small>`;
+
+    const date = qc.createdAt ? qc.createdAt.substring(0, 10) : '—';
+    const checkedBy = qc.checkedByName || '—';
+
+    return `<tr>
+        <td class="fw-semibold small">${qc.qcNumber || '—'}</td>
+        <td><span class="text-primary">${qc.orderCode || '—'}</span></td>
+        <td>${qc.customerName || '—'}</td>
+        <td class="text-center">${qc.checkRound || 1}</td>
+        <td class="text-center">${statusBadge}</td>
+        <td class="text-center">${resultBadge}</td>
+        <td>${bar}</td>
+        <td>${checkedBy}</td>
+        <td class="small">${date}</td>
+        <td class="text-center">
+            <button class="btn btn-outline-primary btn-sm py-0 px-2" onclick="openDetailPanel(${qc.id})" title="Chi tiết / Kiểm tra">
+                <i class="fas fa-clipboard-list"></i>
+            </button>
+            ${qc.status === 'PASSED' || qc.status === 'FAILED' ? `
+            <button class="btn btn-outline-warning btn-sm py-0 px-2 ms-1" onclick="openOverrideModal(${qc.id})" title="Override">
+                <i class="fas fa-edit"></i>
+            </button>` : ''}
+        </td>
+    </tr>`;
+}
+
+function buildQcPagination(current, total) {
+    if (total <= 1) { $('#qcPagination').html(''); return; }
+    let html = '';
+    for (let i = 0; i < total; i++) {
+        html += `<button class="btn btn-sm ${i === current ? 'btn-primary' : 'btn-outline-secondary'}"
+                         onclick="loadQCList(${i})">${i + 1}</button>`;
+    }
+    $('#qcPagination').html(html);
+}
+
+// ─── Create QC ───────────────────────────────────────────────────────────
+
+function openCreateQCModal() {
+    $('#createQcOrderId').val('');
+    modalCreateQC.show();
+}
+
+function doCreateQC() {
+    const orderId = $('#createQcOrderId').val();
+    const ok = FormValidator.validate('modalCreateQC', [
+        { id: 'createQcOrderId', label: 'ID đơn hàng', required: true, type: 'number', min: 1 }
+    ]);
+    if (!ok) return;
+    $.ajax({
+        url: BASE + '/orders/' + orderId + '/qc',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ userId: CURRENT_USER_ID }),
+        success: function(res) {
+            if (res.success) {
+                modalCreateQC.hide();
+                showToast('success', 'Đã tạo phiếu QC: ' + res.data.qcNumber);
+                loadQCList();
+                loadStats();
+            } else {
+                showToast('danger', res.message || 'Tạo phiếu QC thất bại');
+            }
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.message || 'Lỗi khi tạo phiếu QC';
+            showToast('danger', msg);
+        }
+    });
+}
+
+// ─── Override QC ─────────────────────────────────────────────────────────
+
+function openOverrideModal(qcId) {
+    $('#overrideQcId').val(qcId);
+    $('#overrideNotes').val('');
+    modalOverrideQC.show();
+}
+
+function doOverrideQC() {
+    const qcId = $('#overrideQcId').val();
+    const overallResult = $('#overrideResult').val();
+    const notes = $('#overrideNotes').val().trim();
+    const ok = FormValidator.validate('modalOverrideQC', [
+        { id: 'overrideNotes', label: 'Lý do override', required: true }
+    ]);
+    if (!ok) return;
+    $.ajax({
+        url: BASE + '/qc/' + qcId + '/override',
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ overallResult, notes, userId: CURRENT_USER_ID }),
+        success: function(res) {
+            if (res.success) {
+                modalOverrideQC.hide();
+                showToast('success', 'Đã override kết quả QC');
+                loadQCList();
+                loadStats();
+                if (activePanelQcId === parseInt(qcId)) loadDetailPanel(qcId);
+            } else {
+                showToast('danger', res.message);
+            }
+        },
+        error: function(xhr) { showToast('danger', xhr.responseJSON?.message || 'Lỗi'); }
+    });
+}
+
+// ─── Detail Panel ─────────────────────────────────────────────────────────
+
+function openDetailPanel(qcId) {
+    activePanelQcId = qcId;
+    loadDetailPanel(qcId);
+    document.getElementById('detailPanel').classList.add('open');
+    document.getElementById('panelOverlay').style.display = 'block';
+}
+
+function closePanel() {
+    document.getElementById('detailPanel').classList.remove('open');
+    document.getElementById('panelOverlay').style.display = 'none';
+    activePanelQcId = null;
+}
+
+function loadDetailPanel(qcId) {
+    $.get(BASE + '/qc/' + qcId, function(res) {
+        if (!res.success) return;
+        const qc = res.data;
+        renderPanel(qc);
+    });
+}
+
+function renderPanel(qc) {
+    $('#panelQcNumber').text(qc.qcNumber || '—');
+    const statusClass = { PENDING:'secondary', IN_PROGRESS:'primary', PASSED:'success', FAILED:'danger' };
+    $('#panelQcStatus').attr('class', 'badge bg-' + (statusClass[qc.status] || 'secondary'))
+        .text(qc.statusLabel || qc.status);
+    $('#panelOrderCode').text(qc.orderCode || '—');
+    $('#panelCustomer').text(qc.customerName || '—');
+    $('#panelRound').text('Lần ' + (qc.checkRound || 1));
+    $('#panelResult').html(qc.overallResult
+        ? `<span class="badge badge-${qc.overallResult}">${qc.overallResultLabel || qc.overallResult}</span>`
+        : '<span class="text-muted">Chưa kết luận</span>');
+
+    const done = (qc.passCount || 0) + (qc.failCount || 0);
+    const total = qc.totalItems || 8;
+    const pct = total > 0 ? Math.round(done / total * 100) : 0;
+    const passPct = total > 0 ? Math.round((qc.passCount || 0) / total * 100) : 0;
+    $('#panelItemProgress').text(done + '/' + total + ' tiêu chí đã kiểm');
+    $('#panelPassRate').text('Đạt: ' + (qc.passCount || 0) + ' | Lỗi: ' + (qc.failCount || 0));
+    $('#panelProgressBar').css({ width: pct + '%', background: (qc.failCount || 0) > 0 ? '#e53935' : '#43a047' });
+
+    // Actions
+    let actions = '';
+    if (qc.status === 'PENDING') {
+        actions += `<button class="btn btn-primary btn-sm" onclick="doStartQC(${qc.id})">
+            <i class="fas fa-play me-1"></i>Bắt đầu kiểm tra</button>`;
+    }
+    if (qc.status === 'IN_PROGRESS') {
+        actions += `<button class="btn btn-success btn-sm" onclick="showFinalizeSection()">
+            <i class="fas fa-flag-checkered me-1"></i>Tổng hợp kết quả</button>`;
+    }
+    $('#panelActions').html(actions);
+
+    // Finalize section visibility
+    if (qc.status === 'IN_PROGRESS') {
+        $('#panelNotesSection').show();
+    } else {
+        $('#panelNotesSection').hide();
+    }
+
+    // Items
+    if (!qc.items || qc.items.length === 0) {
+        $('#panelItemsContainer').html('<p class="text-muted small">Chưa có tiêu chí.</p>');
+        return;
+    }
+
+    const isEditable = qc.status === 'IN_PROGRESS';
+    let html = '<div class="list-group list-group-flush">';
+    qc.items.forEach(item => {
+        const resultColors = { PASS: 'success', FAIL: 'danger', NA: 'secondary' };
+        const bgClass = item.result === 'FAIL' ? 'list-group-item-danger' : (item.result === 'PASS' ? '' : '');
+        html += `<div class="list-group-item px-0 py-2 ${bgClass}" id="item-row-${item.id}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div style="flex:1">
+                    <div class="fw-semibold small">${item.itemName}</div>
+                    <div class="text-muted" style="font-size:11px">${item.description || ''}</div>
+                    ${item.failNote ? `<div class="text-danger" style="font-size:12px"><i class="fas fa-exclamation-triangle me-1"></i>${item.failNote}</div>` : ''}
+                </div>
+                <div class="d-flex gap-1 ms-2 flex-shrink-0">`;
+
+        if (isEditable) {
+            ['PASS','FAIL','NA'].forEach(r => {
+                const active = item.result === r ? `active-${r}` : '';
+                html += `<button class="btn btn-outline-${resultColors[r]} btn-sm btn-result py-0 px-2 ${active}"
+                    onclick="doUpdateItem(${qc.id}, ${item.id}, '${r}', this)">${r}</button>`;
+            });
+        } else {
+            html += `<span class="badge badge-${item.result}">${item.result}</span>`;
+        }
+
+        html += `</div></div>`;
+        if (isEditable && item.result === 'FAIL') {
+            html += `<div class="mt-1">
+                <input type="text" class="form-control form-control-sm" id="failNote-${item.id}"
+                       value="${item.failNote || ''}" placeholder="Mô tả lỗi (bắt buộc khi FAIL)"
+                       onblur="doUpdateItem(${qc.id}, ${item.id}, 'FAIL', null, this.value)">
+            </div>`;
+        }
+        html += `</div>`;
+    });
+    html += '</div>';
+    $('#panelItemsContainer').html(html);
+}
+
+function doStartQC(qcId) {
+    $.ajax({
+        url: BASE + '/qc/' + qcId + '/start',
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ userId: CURRENT_USER_ID }),
+        success: function(res) {
+            if (res.success) {
+                showToast('success', 'Đã bắt đầu kiểm tra QC');
+                renderPanel(res.data);
+                loadQCList();
+            } else {
+                showToast('danger', res.message);
+            }
+        },
+        error: function(xhr) { showToast('danger', xhr.responseJSON?.message || 'Lỗi'); }
+    });
+}
+
+function doUpdateItem(qcId, itemId, result, btn, failNote) {
+    // Update result button styles
+    if (btn) {
+        const row = $(btn).closest('[id^=item-row-]');
+        row.find('.btn-result').removeClass('active-PASS active-FAIL active-NA');
+        $(btn).addClass('active-' + result);
+        // Show/hide fail note input
+        const noteInput = $('#failNote-' + itemId);
+        if (result === 'FAIL') {
+            if (noteInput.length === 0) {
+                $(`#item-row-${itemId}`).append(`<div class="mt-1">
+                    <input type="text" class="form-control form-control-sm" id="failNote-${itemId}"
+                           placeholder="Mô tả lỗi (bắt buộc khi FAIL)"
+                           onblur="doUpdateItem(${qcId}, ${itemId}, 'FAIL', null, this.value)">
+                </div>`);
+            }
+            return; // Wait for fail note
+        } else {
+            noteInput.closest('div.mt-1').remove();
+        }
+    }
+    const note = failNote || $('#failNote-' + itemId).val() || null;
+    $.ajax({
+        url: BASE + '/qc/' + qcId + '/items/' + itemId,
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ result, failNote: note, userId: CURRENT_USER_ID }),
+        success: function(res) {
+            if (res.success) {
+                loadDetailPanel(qcId); // refresh panel
+            } else {
+                showToast('danger', res.message);
+            }
+        },
+        error: function(xhr) { showToast('danger', xhr.responseJSON?.message || 'Lỗi'); }
+    });
+}
+
+function showFinalizeSection() {
+    $('#panelNotesSection').show();
+    $('html, body').animate({ scrollTop: $('#panelNotesSection').offset().top - 100 }, 300);
+}
+
+function doFinalizeQC() {
+    if (!activePanelQcId) return;
+    const overallNotes  = $('#panelOverallNotes').val();
+    const internalNotes = $('#panelInternalNotes').val();
+    if (!confirm('Bạn có muốn tổng hợp và kết luận phiếu QC này?')) return;
+    $.ajax({
+        url: BASE + '/qc/' + activePanelQcId + '/finalize',
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ overallNotes, internalNotes, userId: CURRENT_USER_ID }),
+        success: function(res) {
+            if (res.success) {
+                const result = res.data.overallResult;
+                showToast(result === 'PASS' ? 'success' : 'danger',
+                    result === 'PASS' ? 'QC Đạt chất lượng! ✔' : 'QC Không đạt — cần sửa hàng!');
+                renderPanel(res.data);
+                loadQCList();
+                loadStats();
+            } else {
+                showToast('danger', res.message);
+            }
+        },
+        error: function(xhr) { showToast('danger', xhr.responseJSON?.message || 'Lỗi'); }
+    });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TAB 2 — RE-CHECK
+// ════════════════════════════════════════════════════════════════════════════
+
+function loadRecheckList() {
+    $.get(BASE + '/qc?status=FAILED&page=0&size=50&sort=createdAt,desc', function(res) {
+        if (!res.success) return;
+        const items = res.data.content;
+        if (!items.length) {
+            $('#recheckTableBody').html('<tr><td colspan="8" class="text-center text-muted py-3">Không có đơn nào cần re-check</td></tr>');
+            return;
+        }
+        const rows = items.map(qc => `
+            <tr>
+                <td class="fw-semibold small">${qc.qcNumber || '—'}</td>
+                <td><span class="text-primary">${qc.orderCode || '—'}</span></td>
+                <td>${qc.customerName || '—'}</td>
+                <td class="text-center">${qc.checkRound || 1}</td>
+                <td class="text-center text-danger fw-semibold">${qc.failCount || 0} lỗi</td>
+                <td class="small">${qc.checkedAt ? qc.checkedAt.substring(0, 10) : '—'}</td>
+                <td class="small text-muted">${qc.overallNotes || '—'}</td>
+                <td class="text-center">
+                    <button class="btn btn-outline-primary btn-sm py-0 px-2" onclick="openDetailPanel(${qc.id})" title="Xem chi tiết">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-warning btn-sm py-0 px-2 ms-1"
+                            onclick="doCreateRecheck(${qc.orderId})" title="Tạo QC lại">
+                        <i class="fas fa-redo"></i> Re-check
+                    </button>
+                </td>
+            </tr>`).join('');
+        $('#recheckTableBody').html(rows);
+    });
+}
+
+function doCreateRecheck(orderId) {
+    if (!confirm('Tạo phiếu QC re-check cho đơn hàng ' + orderId + '?')) return;
+    $.ajax({
+        url: BASE + '/orders/' + orderId + '/qc',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ userId: CURRENT_USER_ID }),
+        success: function(res) {
+            if (res.success) {
+                showToast('success', 'Đã tạo phiếu re-check: ' + res.data.qcNumber);
+                loadRecheckList();
+                loadQCList();
+                loadStats();
+            } else {
+                showToast('danger', res.message);
+            }
+        },
+        error: function(xhr) { showToast('danger', xhr.responseJSON?.message || 'Lỗi'); }
+    });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TAB 3 — GIAO HÀNG
+// ════════════════════════════════════════════════════════════════════════════
+
+function loadDeliveryList(page) {
+    if (page !== undefined) delCurrentPage = page;
+    const status = $('#filterDelStatus').val();
+    let url = BASE + '/delivery?page=' + delCurrentPage + '&size=15&sort=createdAt,desc';
+    if (status) url += '&status=' + status;
+
+    $.get(url, function(res) {
+        if (!res.success) return;
+        const p = res.data;
+        const rows = p.content.map(d => buildDeliveryRow(d)).join('');
+        $('#deliveryTableBody').html(rows || '<tr><td colspan="10" class="text-center text-muted py-3">Không có dữ liệu</td></tr>');
+        $('#delPageInfo').text('Trang ' + (p.number + 1) + ' / ' + (p.totalPages || 1) + ' — Tổng ' + p.totalElements);
+        buildDelPagination(p.number, p.totalPages);
+    });
+}
+
+var METHOD_LABELS = { PICKUP: 'Tự đến lấy', SHIP: 'Vận chuyển', STAFF_DELIVERY: 'NV đem tới' };
+
+function buildDeliveryRow(d) {
+    const statusBadge = `<span class="badge badge-${d.status} rounded-pill">${d.statusLabel || d.status}</span>`;
+    const method = METHOD_LABELS[d.deliveryMethod] || d.deliveryMethod || '—';
+    const remaining = d.remainingAmount != null ? Number(d.remainingAmount).toLocaleString('vi-VN') : '—';
+
+    let actions = `<button class="btn btn-outline-primary btn-sm py-0 px-2" onclick="viewDelivery(${d.id})" title="Chi tiết">
+        <i class="fas fa-eye"></i></button>`;
+
+    if (d.status === 'SCHEDULED') {
+        actions += ` <button class="btn btn-warning btn-sm py-0 px-2 ms-1" onclick="doSetOutForDelivery(${d.id})" title="Bắt đầu giao">
+            <i class="fas fa-truck"></i></button>`;
+        actions += ` <button class="btn btn-success btn-sm py-0 px-2 ms-1" onclick="openConfirmModal(${d.id})" title="Giao thành công">
+            <i class="fas fa-check"></i></button>`;
+    } else if (d.status === 'OUT_FOR_DELIVERY') {
+        actions += ` <button class="btn btn-success btn-sm py-0 px-2 ms-1" onclick="openConfirmModal(${d.id})" title="Xác nhận đã giao">
+            <i class="fas fa-check-circle"></i></button>`;
+        actions += ` <button class="btn btn-danger btn-sm py-0 px-2 ms-1" onclick="openReturnModal(${d.id})" title="Trả lại">
+            <i class="fas fa-undo"></i></button>`;
+    }
+
+    return `<tr>
+        <td class="fw-semibold small">${d.deliveryCode || '—'}</td>
+        <td><span class="text-primary">${d.orderCode || '—'}</span></td>
+        <td>${d.customerName || '—'}</td>
+        <td>${d.recipientName || '—'}</td>
+        <td><small>${method}</small></td>
+        <td class="small">${d.scheduledDate || '—'}</td>
+        <td class="small">${d.actualDeliveryDate || '—'}</td>
+        <td class="text-center">${statusBadge}</td>
+        <td class="text-end fw-semibold ${d.isFullyPaid ? 'text-success' : 'text-danger'}">${d.isFullyPaid ? '<span class="badge bg-success">Đủ</span>' : remaining}</td>
+        <td class="text-center">${actions}</td>
+    </tr>`;
+}
+
+function buildDelPagination(current, total) {
+    if (total <= 1) { $('#delPagination').html(''); return; }
+    let html = '';
+    for (let i = 0; i < total; i++) {
+        html += `<button class="btn btn-sm ${i === current ? 'btn-primary' : 'btn-outline-secondary'}"
+                         onclick="loadDeliveryList(${i})">${i + 1}</button>`;
+    }
+    $('#delPagination').html(html);
+}
+
+function viewDelivery(id) {
+    $.get(BASE + '/delivery/' + id, function(res) {
+        if (!res.success) return;
+        const d = res.data;
+        alert([
+            'Phiếu giao: ' + d.deliveryCode,
+            'Đơn hàng: ' + d.orderCode + ' | KH: ' + d.customerName,
+            'Người nhận: ' + (d.recipientName || '—') + ' — ' + (d.recipientPhone || '—'),
+            'Địa chỉ: ' + (d.deliveryAddress || '—'),
+            'Phương thức: ' + (d.deliveryMethodLabel || d.deliveryMethod),
+            'Ngày hẹn: ' + (d.scheduledDate || '—'),
+            'Ngày giao thực: ' + (d.actualDeliveryDate || '—'),
+            'Trạng thái: ' + (d.statusLabel || d.status),
+            'Còn lại: ' + (d.remainingAmount != null ? Number(d.remainingAmount).toLocaleString('vi-VN') + ' VNĐ' : '—'),
+            'Đã thu: ' + (d.amountCollected != null ? Number(d.amountCollected).toLocaleString('vi-VN') + ' VNĐ' : '—'),
+            'Thanh toán đủ: ' + (d.isFullyPaid ? 'Có ✔' : 'Chưa'),
+            'Ghi chú: ' + (d.notes || '—')
+        ].join('\n'));
+    });
+}
+
+// ─── Create Delivery ─────────────────────────────────────────────────────
+
+function openCreateDeliveryModal() {
+    $('#delOrderId,#delRecipientName,#delRecipientPhone,#delAddress,#delNotes').val('');
+    $('#delScheduledDate').val(new Date().toISOString().substring(0, 10));
+    $('#delMethod').val('PICKUP');
+    modalCreateDelivery.show();
+}
+
+function doCreateDelivery() {
+    const orderId = $('#delOrderId').val();
+    const ok = FormValidator.validate('modalCreateDelivery', [
+        { id: 'delOrderId',       label: 'ID đơn hàng',     required: true, type: 'number', min: 1 },
+        { id: 'delScheduledDate', label: 'Ngày hẹn giao', required: true }
+    ]);
+    if (!ok) return;
+
+    const dto = {
+        scheduledDate:  $('#delScheduledDate').val(),
+        deliveryMethod: $('#delMethod').val(),
+        recipientName:  $('#delRecipientName').val() || null,
+        recipientPhone: $('#delRecipientPhone').val() || null,
+        deliveryAddress: $('#delAddress').val() || null,
+        notes: $('#delNotes').val() || null
+    };
+
+    $.ajax({
+        url: BASE + '/orders/' + orderId + '/delivery',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(dto),
+        success: function(res) {
+            if (res.success) {
+                modalCreateDelivery.hide();
+                showToast('success', 'Đã tạo phiếu giao: ' + res.data.deliveryCode);
+                loadDeliveryList();
+                loadStats();
+            } else {
+                showToast('danger', res.message || 'Tạo phiếu giao thất bại');
+            }
+        },
+        error: function(xhr) {
+            showToast('danger', xhr.responseJSON?.message || 'Lỗi khi tạo phiếu giao');
+        }
+    });
+}
+
+// ─── Delivery status transitions ─────────────────────────────────────────
+
+function doSetOutForDelivery(id) {
+    if (!confirm('Xác nhận bắt đầu giao hàng?')) return;
+    $.ajax({
+        url: BASE + '/delivery/' + id + '/out-for-delivery',
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ userId: CURRENT_USER_ID }),
+        success: function(res) {
+            if (res.success) { showToast('success', 'Đang giao hàng'); loadDeliveryList(); loadStats(); }
+            else showToast('danger', res.message);
+        },
+        error: function(xhr) { showToast('danger', xhr.responseJSON?.message || 'Lỗi'); }
+    });
+}
+
+function openConfirmModal(id) {
+    $('#confirmDelId').val(id);
+    $('#confirmAmount').val('0');
+    $('#confirmNotes').val('');
+    modalConfirm.show();
+}
+
+function doConfirmDelivered() {
+    const id = $('#confirmDelId').val();
+    const amount = parseFloat($('#confirmAmount').val()) || 0;
+    const paymentMethod = $('#confirmPayMethod').val();
+    const notes = $('#confirmNotes').val();
+    $.ajax({
+        url: BASE + '/delivery/' + id + '/confirm-delivered',
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ amountCollected: amount, paymentMethod, userId: CURRENT_USER_ID, notes }),
+        success: function(res) {
+            if (res.success) {
+                modalConfirm.hide();
+                showToast('success', 'Giao hàng thành công! Đơn hàng đã hoàn thành.');
+                loadDeliveryList();
+                loadStats();
+            } else {
+                showToast('danger', res.message);
+            }
+        },
+        error: function(xhr) { showToast('danger', xhr.responseJSON?.message || 'Lỗi'); }
+    });
+}
+
+function openReturnModal(id) {
+    $('#returnDelId').val(id);
+    $('#returnNotes').val('');
+    modalReturn.show();
+}
+
+function doMarkReturned() {
+    const id = $('#returnDelId').val();
+    const returnNotes = $('#returnNotes').val().trim();
+    const ok = FormValidator.validate('modalReturn', [
+        { id: 'returnNotes', label: 'Lý do trả lại', required: true }
+    ]);
+    if (!ok) return;
+    $.ajax({
+        url: BASE + '/delivery/' + id + '/return',
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ returnNotes, userId: CURRENT_USER_ID }),
+        success: function(res) {
+            if (res.success) {
+                modalReturn.hide();
+                showToast('warning', 'Đã đánh dấu trả lại');
+                loadDeliveryList();
+                loadStats();
+            } else {
+                showToast('danger', res.message);
+            }
+        },
+        error: function(xhr) { showToast('danger', xhr.responseJSON?.message || 'Lỗi'); }
+    });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════════════════════════════════════════
+
+function showToast(type, msg) {
+    if (window.showAppToast) {
+        window.showAppToast(msg, type);
+        return;
+    }
+    const id = 'toast_' + Date.now();
+    const bgClass = { success: 'bg-success', danger: 'bg-danger', warning: 'bg-warning', info: 'bg-info' }[type] || 'bg-secondary';
+    const el = $(`<div id="${id}" class="toast align-items-center text-white ${bgClass} border-0 show position-fixed"
+                        role="alert" style="top:1rem;right:1rem;z-index:9999;min-width:280px">
+        <div class="d-flex">
+            <div class="toast-body">${msg}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="$('#${id}').remove()"></button>
+        </div>
+    </div>`);
+    $('body').append(el);
+    setTimeout(() => el.remove(), 4000);
+}
+</script>
+</body>
+</html>

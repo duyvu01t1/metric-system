@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tài chính &amp; Hoa hồng - Metric System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        /* ─── Stat cards ──────────────────────────────────────────── */
+        .stat-card { border-radius:12px;padding:18px 20px;color:#fff; }
+        .stat-card .val { font-size:26px;font-weight:700; }
+        .stat-card .lbl { font-size:12px;opacity:.85; }
+
+        /* ─── Tabs ──────────────────────────────────────────────────── */
+        .nav-tabs .nav-link { color:#495057; }
+        .nav-tabs .nav-link.active { color:#0d6efd;font-weight:600; }
+
+        /* ─── Commission badges ─────────────────────────────────────── */
+        .badge-PRIMARY   { background:#1976d2;color:#fff; }
+        .badge-SECONDARY { background:#6c757d;color:#fff; }
+        .badge-PAID      { background:#198754;color:#fff; }
+        .badge-UNPAID    { background:#dc3545;color:#fff; }
+        .badge-OVERRIDE  { background:#fd7e14;color:#fff; }
+        .badge-PENDING   { background:#ffc107;color:#333; }
+        .badge-APPROVED  { background:#198754;color:#fff; }
+        .badge-REJECTED  { background:#dc3545;color:#fff; }
+
+        /* Expense category colours */
+        .cat-RENT        { border-left:4px solid #1976d2; }
+        .cat-UTILITIES   { border-left:4px solid #7b1fa2; }
+        .cat-MATERIALS   { border-left:4px solid #e65100; }
+        .cat-SALARY      { border-left:4px solid #388e3c; }
+        .cat-MARKETING   { border-left:4px solid #f57f17; }
+        .cat-EQUIPMENT   { border-left:4px solid #00838f; }
+        .cat-MAINTENANCE { border-left:4px solid #c62828; }
+        .cat-OTHER       { border-left:4px solid #757575; }
+
+        .table td, .table th { vertical-align:middle;font-size:13.5px; }
+
+        /* ─── Period selector ────────────────────────────────────────── */
+        .period-select { display:inline-flex;gap:8px;align-items:center; }
+
+        /* Summary pie-like bar */
+        .category-bar { height:10px;border-radius:4px;display:inline-block;min-width:6px; }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{dashboard :: sidebar}"></div>
+
+<div class="main-content" id="mainContent">
+
+    <!-- ─── Header ─────────────────────────────────────────────────────── -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0"><i class="fas fa-coins me-2 text-warning"></i>Tài chính &amp; Hoa hồng</h4>
+            <small class="text-muted">Quản lý hoa hồng nhân viên, chi phí vận hành và tổng quan tài chính</small>
+        </div>
+        <div class="period-select">
+            <label class="text-muted me-1" style="font-size:13px;">Kỳ:</label>
+            <select class="form-select form-select-sm" id="selYear" onchange="onPeriodChange()" style="width:90px"></select>
+            <select class="form-select form-select-sm" id="selMonth" onchange="onPeriodChange()" style="width:100px">
+                <option value="1">Tháng 1</option><option value="2">Tháng 2</option>
+                <option value="3">Tháng 3</option><option value="4">Tháng 4</option>
+                <option value="5">Tháng 5</option><option value="6">Tháng 6</option>
+                <option value="7">Tháng 7</option><option value="8">Tháng 8</option>
+                <option value="9">Tháng 9</option><option value="10">Tháng 10</option>
+                <option value="11">Tháng 11</option><option value="12">Tháng 12</option>
+            </select>
+            <button class="btn btn-sm btn-outline-secondary" onclick="loadAll()">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- ─── Stats ────────────────────────────────────────────────────────── -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#1976d2,#64b5f6)">
+                <div class="lbl">Tổng hoa hồng kỳ này</div>
+                <div class="val" id="statCommPeriod">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#e53935,#ef9a9a)">
+                <div class="lbl">Hoa hồng chưa trả</div>
+                <div class="val" id="statCommUnpaid">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#f57c00,#ffcc80)">
+                <div class="lbl">Chi phí kỳ này (đã duyệt)</div>
+                <div class="val" id="statExpenses">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#757575,#bdbdbd)">
+                <div class="lbl">Chi phí chờ duyệt</div>
+                <div class="val" id="statExpPending">–</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── Tabs ──────────────────────────────────────────────────────────── -->
+    <ul class="nav nav-tabs mb-3" id="mainTabs">
+        <li class="nav-item">
+            <a class="nav-link active" href="#" onclick="switchTab('overview',this)">
+                <i class="fas fa-chart-pie me-1"></i>Tổng quan tháng</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="switchTab('commissions',this)">
+                <i class="fas fa-hand-holding-usd me-1"></i>Hoa hồng NV
+                <span class="badge bg-danger ms-1" id="tabBadgeUnpaid">–</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="switchTab('expenses',this)">
+                <i class="fas fa-receipt me-1"></i>Chi phí vận hành</a>
+        </li>
+    </ul>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         TAB 1 — TỔNG QUAN THÁNG
+    ════════════════════════════════════════════════════════════════════ -->
+    <div id="tabOverview">
+
+        <div class="row g-4">
+            <!-- Commission by staff -->
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header fw-bold">
+                        <i class="fas fa-users me-1 text-primary"></i>Hoa hồng theo nhân viên
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-sm mb-0">
+                            <thead class="table-light">
+                                <tr><th>Nhân viên</th><th class="text-end">Hoa hồng</th><th class="text-end">Trạng thái</th></tr>
+                            </thead>
+                            <tbody id="tbodyCommByStaff">
+                                <tr><td colspan="3" class="text-center text-muted p-3">Đang tải...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!-- Expense by category -->
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header fw-bold">
+                        <i class="fas fa-chart-bar me-1 text-warning"></i>Chi phí theo danh mục
+                    </div>
+                    <div class="card-body" id="expenseSummaryPanel">
+                        <div class="text-center text-muted p-3">Đang tải...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         TAB 2 — HOA HỒNG NHÂN VIÊN
+    ════════════════════════════════════════════════════════════════════ -->
+    <div id="tabCommissions" class="d-none">
+
+        <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+            <select class="form-select form-select-sm" style="width:auto" id="filterCommPaid"
+                    onchange="loadCommissions()">
+                <option value="">Tất cả</option>
+                <option value="false">Chưa thanh toán</option>
+                <option value="true">Đã thanh toán</option>
+            </select>
+            <input type="number" class="form-control form-control-sm" style="width:150px"
+                   id="filterCommStaffId" placeholder="Staff ID...">
+            <button class="btn btn-sm btn-outline-primary" onclick="loadCommissions()">
+                <i class="fas fa-search"></i> Lọc
+            </button>
+            <div class="ms-auto d-flex gap-2">
+                <button class="btn btn-sm btn-success" onclick="bulkMarkPaid()">
+                    <i class="fas fa-check-double me-1"></i>Xác nhận trả (đã chọn)
+                </button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover" id="tblCommissions">
+                <thead class="table-light">
+                    <tr>
+                        <th><input type="checkbox" id="chkAll" onchange="toggleSelectAll(this)"></th>
+                        <th>Nhân viên</th>
+                        <th>Đơn hàng</th>
+                        <th>Vai trò</th>
+                        <th>Kỳ</th>
+                        <th>Căn tính</th>
+                        <th>Tỷ lệ</th>
+                        <th>Hoa hồng</th>
+                        <th>Override</th>
+                        <th>Trạng thái</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyCommissions">
+                    <tr><td colspan="11" class="text-center text-muted py-4">Đang tải...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <nav><ul class="pagination pagination-sm justify-content-end" id="commPagination"></ul></nav>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         TAB 3 — CHI PHÍ VẬN HÀNH
+    ════════════════════════════════════════════════════════════════════ -->
+    <div id="tabExpenses" class="d-none">
+
+        <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+            <select class="form-select form-select-sm" style="width:auto" id="filterExpCategory"
+                    onchange="loadExpenses()">
+                <option value="">Tất cả danh mục</option>
+                <option value="RENT">Mặt bằng</option>
+                <option value="UTILITIES">Điện / Nước</option>
+                <option value="MATERIALS">Nguyên vật liệu</option>
+                <option value="SALARY">Lương</option>
+                <option value="MARKETING">Marketing</option>
+                <option value="EQUIPMENT">Thiết bị</option>
+                <option value="MAINTENANCE">Bảo trì</option>
+                <option value="OTHER">Khác</option>
+            </select>
+            <select class="form-select form-select-sm" style="width:auto" id="filterExpStatus"
+                    onchange="loadExpenses()">
+                <option value="">Tất cả trạng thái</option>
+                <option value="PENDING">Chờ duyệt</option>
+                <option value="APPROVED">Đã duyệt</option>
+                <option value="REJECTED">Bị từ chối</option>
+            </select>
+            <div class="ms-auto">
+                <button class="btn btn-primary btn-sm" onclick="openExpenseCreateModal()">
+                    <i class="fas fa-plus me-1"></i>Thêm chi phí
+                </button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover" id="tblExpenses">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã</th>
+                        <th>Tên chi phí</th>
+                        <th>Danh mục</th>
+                        <th>Ngày</th>
+                        <th>Tháng/Năm</th>
+                        <th>Số tiền</th>
+                        <th>Lặp lại</th>
+                        <th>Trạng thái</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyExpenses">
+                    <tr><td colspan="9" class="text-center text-muted py-4">Đang tải...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <nav><ul class="pagination pagination-sm justify-content-end" id="expPagination"></ul></nav>
+    </div>
+
+</div><!-- /.main-content -->
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     MODAL — Override Hoa hồng (7.3)
+════════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalOverride" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Chỉnh sửa Hoa hồng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="overrideCommId">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Số tiền hoa hồng mới (VNĐ) <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="overrideAmount" min="0" step="1000"
+                           placeholder="500000">
+                    <small class="text-muted">Hoa hồng hiện tại: <span id="overrideCurrentAmount" class="fw-bold"></span></small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Lý do chỉnh sửa <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="overrideReason" rows="3"
+                              placeholder="Ghi rõ lý do thay đổi hoa hồng..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">ID Công đoạn sản xuất (tùy chọn)</label>
+                    <input type="number" class="form-control" id="overrideStageId"
+                           placeholder="Để trống nếu không liên quan đến công đoạn cụ thể">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-warning" onclick="submitOverride()">
+                    <i class="fas fa-save me-1"></i>Lưu thay đổi
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     MODAL — Tạo / Sửa Chi phí (7.4)
+════════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalExpense" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="expenseModalTitle">
+                    <i class="fas fa-receipt me-2"></i>Thêm chi phí
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="expenseId">
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">Tên chi phí <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="expTitle"
+                               placeholder="Ví dụ: Tiền thuê mặt bằng tháng 4/2026">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Danh mục <span class="text-danger">*</span></label>
+                        <select class="form-select" id="expCategory">
+                            <option value="RENT">Mặt bằng</option>
+                            <option value="UTILITIES">Điện / Nước / Internet</option>
+                            <option value="MATERIALS">Nguyên vật liệu</option>
+                            <option value="SALARY">Lương nhân viên</option>
+                            <option value="MARKETING">Marketing</option>
+                            <option value="EQUIPMENT">Thiết bị</option>
+                            <option value="MAINTENANCE">Bảo trì</option>
+                            <option value="OTHER" selected>Khác</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Số tiền (VNĐ) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="expAmount" min="0" step="1000"
+                               placeholder="0">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Ngày chi <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="expDate">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Lặp lại hàng tháng?</label>
+                        <div class="form-check form-switch mt-2">
+                            <input class="form-check-input" type="checkbox" id="expRecurring">
+                            <label class="form-check-label" for="expRecurring">Có</label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Mô tả / Ghi chú</label>
+                        <textarea class="form-control" id="expDescription" rows="2"
+                                  placeholder="Ghi chú thêm về khoản chi phí này..."></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">URL chứng từ / Hóa đơn</label>
+                        <input type="url" class="form-control" id="expReceiptUrl"
+                               placeholder="https://...">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="submitExpense()">
+                    <i class="fas fa-save me-1"></i>Lưu
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     MODAL — Tính hoa hồng theo đơn hàng
+════════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalCalcComm" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-calculator me-2"></i>Tính hoa hồng đơn hàng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Order ID <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="calcOrderId" placeholder="Nhập ID đơn hàng...">
+                </div>
+                <div class="alert alert-info mb-0" style="font-size:13px;">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Hệ thống sẽ tính hoa hồng cho nhân viên chính (5%) và nhân viên phụ (2%) của đơn.
+                    Nếu đơn đã có hoa hồng được override thủ công, bản ghi đó sẽ <strong>không</strong> bị ghi đè.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="submitCalcComm()">
+                    <i class="fas fa-calculator me-1"></i>Tính ngay
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script th:src="@{/js/form-validator.js}"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════════════ */
+var commPage    = 0;
+var commSize    = 20;
+var expPage     = 0;
+var expSize     = 20;
+var currentUserId = 1; // TODO: pull from session
+
+/* ═══════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════ */
+(function() {
+    const ySel = document.getElementById('selYear');
+    const now  = new Date();
+    for (let y = now.getFullYear(); y >= now.getFullYear() - 3; y--) {
+        const opt = document.createElement('option');
+        opt.value = y; opt.text = y;
+        if (y === now.getFullYear()) opt.selected = true;
+        ySel.appendChild(opt);
+    }
+    document.getElementById('selMonth').value = now.getMonth() + 1;
+    loadAll();
+})();
+
+function getPeriod() {
+    return {
+        year:  parseInt(document.getElementById('selYear').value),
+        month: parseInt(document.getElementById('selMonth').value)
+    };
+}
+
+function onPeriodChange() { loadAll(); }
+
+function loadAll() {
+    loadOverview();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TABS
+═══════════════════════════════════════════════════════════════ */
+function switchTab(tab, el) {
+    ['tabOverview','tabCommissions','tabExpenses'].forEach(id =>
+        document.getElementById(id).classList.add('d-none'));
+    document.querySelectorAll('#mainTabs .nav-link').forEach(a => a.classList.remove('active'));
+    document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.remove('d-none');
+    el.classList.add('active');
+    if (tab === 'commissions') { commPage = 0; loadCommissions(); }
+    if (tab === 'expenses')    { expPage  = 0; loadExpenses(); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TAB 1 — OVERVIEW
+═══════════════════════════════════════════════════════════════ */
+function loadOverview() {
+    const { year, month } = getPeriod();
+    fetch(`/api/finance/overview?year=${year}&month=${month}`, {headers: authHeaders()})
+        .then(r => r.json()).then(res => {
+            if (!res.success) return;
+            const d = res.data;
+            // Stats
+            document.getElementById('statCommPeriod').textContent  = fmtMoney(d.totalCommissionPeriod);
+            document.getElementById('statCommUnpaid').textContent   = fmtMoney(d.unpaidCommissionTotal);
+            document.getElementById('statExpenses').textContent     = fmtMoney(d.totalExpensesPeriod);
+            document.getElementById('statExpPending').textContent   = d.pendingExpenseCount ?? '–';
+            document.getElementById('tabBadgeUnpaid').textContent   = d.unpaidCommissionCount ?? 0;
+
+            // Commission by staff table
+            const staffRows = d.commissionByStaff || [];
+            document.getElementById('tbodyCommByStaff').innerHTML = staffRows.length
+                ? staffRows.map(s => `<tr>
+                    <td class="fw-semibold">${esc(s.staffName || 'NV #' + s.staffId)}</td>
+                    <td class="text-end text-primary fw-bold">${fmtMoney(s.totalCommission)}</td>
+                    <td class="text-end"><span class="badge badge-UNPAID">Chưa xét duyệt</span></td>
+                </tr>`).join('')
+                : '<tr><td colspan="3" class="text-center text-muted p-3">Không có dữ liệu hoa hồng kỳ này</td></tr>';
+
+            // Expense by category bar
+            const expByCategory = d.expenseByCategory || {};
+            const catLabels = {
+                RENT:'Mặt bằng', UTILITIES:'Điện/Nước', MATERIALS:'Nguyên liệu',
+                SALARY:'Lương', MARKETING:'Marketing', EQUIPMENT:'Thiết bị',
+                MAINTENANCE:'Bảo trì', OTHER:'Khác'
+            };
+            const catColors = {
+                RENT:'#1976d2',UTILITIES:'#7b1fa2',MATERIALS:'#e65100',
+                SALARY:'#388e3c',MARKETING:'#f57f17',EQUIPMENT:'#00838f',
+                MAINTENANCE:'#c62828',OTHER:'#757575'
+            };
+            const total = Object.values(expByCategory).reduce((a, v) => a + parseFloat(v || 0), 0);
+            const expHtml = Object.entries(expByCategory).map(([cat, amt]) => {
+                const pct = total > 0 ? Math.round((parseFloat(amt) / total) * 100) : 0;
+                return `<div class="mb-2">
+                    <div class="d-flex justify-content-between" style="font-size:13px;">
+                        <span>${esc(catLabels[cat] || cat)}</span>
+                        <span class="fw-bold">${fmtMoney(amt)} <small class="text-muted">(${pct}%)</small></span>
+                    </div>
+                    <div class="progress" style="height:8px;">
+                        <div class="progress-bar" style="width:${pct}%;background:${catColors[cat]||'#999'}"></div>
+                    </div>
+                </div>`;
+            }).join('');
+            document.getElementById('expenseSummaryPanel').innerHTML =
+                expHtml || '<div class="text-center text-muted p-3">Không có chi phí nào kỳ này</div>';
+            if (total > 0) {
+                document.getElementById('expenseSummaryPanel').innerHTML +=
+                    `<hr><div class="d-flex justify-content-between fw-bold"><span>Tổng cộng</span><span class="text-warning">${fmtMoney(total)}</span></div>`;
+            }
+        }).catch(e => console.error('Overview error:', e));
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TAB 2 — COMMISSIONS
+═══════════════════════════════════════════════════════════════ */
+function loadCommissions() {
+    const { year, month } = getPeriod();
+    const isPaid   = document.getElementById('filterCommPaid').value;
+    const staffId  = document.getElementById('filterCommStaffId').value;
+    let url = `/api/finance/commissions?page=${commPage}&size=${commSize}&year=${year}&month=${month}`;
+    if (isPaid)  url += `&isPaid=${isPaid}`;
+    if (staffId) url += `&staffId=${staffId}`;
+
+    document.getElementById('tbodyCommissions').innerHTML =
+        '<tr><td colspan="11" class="text-center text-muted">Đang tải...</td></tr>';
+
+    fetch(url, {headers: authHeaders()})
+        .then(r => r.json()).then(res => {
+            const page = res.data;
+            const items = page.content || [];
+            if (!items.length) {
+                document.getElementById('tbodyCommissions').innerHTML =
+                    '<tr><td colspan="11" class="text-center text-muted py-4">Không có dữ liệu hoa hồng</td></tr>';
+                renderPagination('commPagination', 0, 0, 'loadCommPage');
+                return;
+            }
+            document.getElementById('tbodyCommissions').innerHTML = items.map(renderCommRow).join('');
+            renderPagination('commPagination', page.number, page.totalPages, 'loadCommPage');
+        }).catch(() => {
+            document.getElementById('tbodyCommissions').innerHTML =
+                '<tr><td colspan="11" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>';
+        });
+}
+
+function loadCommPage(p) { commPage = p; loadCommissions(); }
+
+function renderCommRow(c) {
+    const paidBadge = c.isPaid
+        ? '<span class="badge badge-PAID">Đã trả</span>'
+        : '<span class="badge badge-UNPAID">Chưa trả</span>';
+    const overrideBadge = c.isManualOverride
+        ? `<span class="badge badge-OVERRIDE" title="${esc(c.overrideReason||'')}">Override</span>` : '';
+    return `<tr>
+        <td><input type="checkbox" class="comm-chk" value="${c.id}" ${ c.isPaid?'disabled':'' }></td>
+        <td class="fw-semibold">${esc(c.staffName || 'NV #' + c.staffId)}</td>
+        <td><small>${esc(c.orderCode || 'ID:' + c.orderId)}</small></td>
+        <td><span class="badge badge-${c.staffRoleType}">${esc(c.roleTypeLabel)}</span></td>
+        <td><small>${c.periodMonth}/${c.periodYear}</small></td>
+        <td class="text-end">${fmtMoney(c.commissionBase)}</td>
+        <td class="text-center">${pct(c.commissionRate)}</td>
+        <td class="text-end fw-bold text-primary">${fmtMoney(c.commissionAmount)}</td>
+        <td>${overrideBadge}</td>
+        <td>${paidBadge} ${c.paidAt ? '<br><small class="text-muted">' + fmtDate(c.paidAt) + '</small>' : ''}</td>
+        <td>
+            <div class="btn-group btn-group-sm">
+                ${!c.isPaid ? `
+                <button class="btn btn-outline-warning" title="Chỉnh sửa thủ công" onclick="openOverrideModal(${c.id},'${esc(c.commissionAmount)}')">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-outline-success" title="Xác nhận đã trả" onclick="markPaid(${c.id})">
+                    <i class="fas fa-check"></i>
+                </button>` : ''}
+            </div>
+        </td>
+    </tr>`;
+}
+
+function toggleSelectAll(chk) {
+    document.querySelectorAll('.comm-chk:not([disabled])').forEach(c => c.checked = chk.checked);
+}
+
+function bulkMarkPaid() {
+    const ids = [...document.querySelectorAll('.comm-chk:checked')].map(c => parseInt(c.value));
+    if (!ids.length) { showToast('Chưa chọn bản ghi nào', 'warning'); return; }
+    fetch('/api/finance/commissions/bulk-mark-paid', {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json', ...authHeaders()},
+        body: JSON.stringify({ ids, userId: currentUserId })
+    }).then(r => r.json()).then(res => {
+        if (res.success) {
+            showToast(res.message, 'success');
+            loadCommissions();
+            loadOverview();
+        } else { showToast(res.message || 'Lỗi', 'danger'); }
+    });
+}
+
+function markPaid(commId) {
+    fetch(`/api/finance/commissions/${commId}/mark-paid`, {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json', ...authHeaders()},
+        body: JSON.stringify({ userId: currentUserId })
+    }).then(r => r.json()).then(res => {
+        if (res.success) { showToast('Đã xác nhận thanh toán', 'success'); loadCommissions(); loadOverview(); }
+        else showToast(res.message || 'Lỗi', 'danger');
+    });
+}
+
+/* ─── Override Modal ─── */
+function openOverrideModal(commId, currentAmount) {
+    document.getElementById('overrideCommId').value         = commId;
+    document.getElementById('overrideAmount').value          = '';
+    document.getElementById('overrideReason').value          = '';
+    document.getElementById('overrideStageId').value         = '';
+    document.getElementById('overrideCurrentAmount').textContent = fmtMoney(currentAmount);
+    new bootstrap.Modal(document.getElementById('modalOverride')).show();
+}
+
+function submitOverride() {
+    const id     = document.getElementById('overrideCommId').value;
+    const amount = document.getElementById('overrideAmount').value;
+    const reason = document.getElementById('overrideReason').value.trim();
+    const stageId = document.getElementById('overrideStageId').value;
+    const ok = FormValidator.validate('modalOverride', [
+        { id: 'overrideAmount', label: 'Số tiền hoa hồng', required: true, type: 'number', min: 0 },
+        { id: 'overrideReason', label: 'Lý do chỉnh sửa',    required: true }
+    ]);
+    if (!ok) return;
+    fetch(`/api/finance/commissions/${id}/override`, {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json', ...authHeaders()},
+        body: JSON.stringify({ amount: parseFloat(amount), reason, productionStageId: stageId||null, userId: currentUserId })
+    }).then(r => r.json()).then(res => {
+        if (res.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalOverride')).hide();
+            showToast('Đã cập nhật hoa hồng', 'success');
+            loadCommissions(); loadOverview();
+        } else showToast(res.message || 'Lỗi', 'danger');
+    });
+}
+
+/* ─── Calculate Commission Modal ─── */
+function openCalcModal() {
+    document.getElementById('calcOrderId').value = '';
+    new bootstrap.Modal(document.getElementById('modalCalcComm')).show();
+}
+function submitCalcComm() {
+    const orderId = document.getElementById('calcOrderId').value;
+    const ok = FormValidator.validate('modalCalcComm', [
+        { id: 'calcOrderId', label: 'Order ID', required: true, type: 'number', min: 1 }
+    ]);
+    if (!ok) return;
+    fetch(`/api/finance/commissions/calculate/${orderId}`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json', ...authHeaders()},
+        body: JSON.stringify({ userId: currentUserId })
+    }).then(r => r.json()).then(res => {
+        if (res.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalCalcComm')).hide();
+            showToast(res.message || 'Đã tính hoa hồng', 'success');
+            loadCommissions(); loadOverview();
+        } else showToast(res.message || 'Lỗi', 'danger');
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TAB 3 — EXPENSES
+═══════════════════════════════════════════════════════════════ */
+function loadExpenses() {
+    const { year, month } = getPeriod();
+    const cat    = document.getElementById('filterExpCategory').value;
+    const status = document.getElementById('filterExpStatus').value;
+    let url = `/api/finance/expenses?page=${expPage}&size=${expSize}&year=${year}&month=${month}`;
+    if (cat)    url += `&category=${cat}`;
+    if (status) url += `&status=${status}`;
+
+    document.getElementById('tbodyExpenses').innerHTML =
+        '<tr><td colspan="9" class="text-center text-muted">Đang tải...</td></tr>';
+
+    fetch(url, {headers: authHeaders()})
+        .then(r => r.json()).then(res => {
+            const page = res.data;
+            const items = page.content || [];
+            if (!items.length) {
+                document.getElementById('tbodyExpenses').innerHTML =
+                    '<tr><td colspan="9" class="text-center text-muted py-4">Không có chi phí nào</td></tr>';
+                renderPagination('expPagination', 0, 0, 'loadExpPage');
+                return;
+            }
+            document.getElementById('tbodyExpenses').innerHTML = items.map(renderExpRow).join('');
+            renderPagination('expPagination', page.number, page.totalPages, 'loadExpPage');
+        }).catch(() => {
+            document.getElementById('tbodyExpenses').innerHTML =
+                '<tr><td colspan="9" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>';
+        });
+}
+
+function loadExpPage(p) { expPage = p; loadExpenses(); }
+
+function renderExpRow(e) {
+    const statusBadge = `<span class="badge badge-${e.status}">${esc(e.statusLabel)}</span>`;
+    return `<tr class="cat-${e.category}">
+        <td><small class="text-muted">${esc(e.expenseCode)}</small></td>
+        <td class="fw-semibold">${esc(e.title)}</td>
+        <td><span class="badge bg-secondary">${esc(e.categoryLabel)}</span></td>
+        <td>${fmtDate(e.expenseDate)}</td>
+        <td>${e.periodMonth}/${e.periodYear}</td>
+        <td class="text-end fw-bold text-warning">${fmtMoney(e.amount)}</td>
+        <td class="text-center">${e.isRecurring ? '<i class="fas fa-sync-alt text-info" title="Lặp lại hàng tháng"></i>' : '–'}</td>
+        <td>${statusBadge}</td>
+        <td>
+            <div class="btn-group btn-group-sm">
+                ${e.status === 'PENDING' ? `
+                <button class="btn btn-outline-success" title="Phê duyệt" onclick="approveExpense(${e.id})">
+                    <i class="fas fa-check"></i></button>
+                <button class="btn btn-outline-danger" title="Từ chối" onclick="rejectExpense(${e.id})">
+                    <i class="fas fa-times"></i></button>
+                <button class="btn btn-outline-primary" title="Sửa" onclick="openExpenseEditModal(${e.id})">
+                    <i class="fas fa-edit"></i></button>
+                <button class="btn btn-outline-secondary" title="Xóa" onclick="deleteExpense(${e.id})">
+                    <i class="fas fa-trash"></i></button>` : ''}
+            </div>
+        </td>
+    </tr>`;
+}
+
+/* ─── Expense CRUD ─── */
+function openExpenseCreateModal() {
+    document.getElementById('expenseId').value    = '';
+    document.getElementById('expTitle').value     = '';
+    document.getElementById('expCategory').value  = 'OTHER';
+    document.getElementById('expAmount').value    = '';
+    document.getElementById('expDate').value      = new Date().toISOString().slice(0,10);
+    document.getElementById('expRecurring').checked = false;
+    document.getElementById('expDescription').value = '';
+    document.getElementById('expReceiptUrl').value  = '';
+    document.getElementById('expenseModalTitle').innerHTML =
+        '<i class="fas fa-receipt me-2"></i>Thêm chi phí';
+    new bootstrap.Modal(document.getElementById('modalExpense')).show();
+}
+
+function openExpenseEditModal(expId) {
+    fetch(`/api/finance/expenses/${expId}`, {headers: authHeaders()})
+        .then(r => r.json()).then(res => {
+            if (!res.success) return;
+            const e = res.data;
+            document.getElementById('expenseId').value    = e.id;
+            document.getElementById('expTitle').value     = e.title || '';
+            document.getElementById('expCategory').value  = e.category || 'OTHER';
+            document.getElementById('expAmount').value    = e.amount || '';
+            document.getElementById('expDate').value      = e.expenseDate || '';
+            document.getElementById('expRecurring').checked = e.isRecurring || false;
+            document.getElementById('expDescription').value = e.description || '';
+            document.getElementById('expReceiptUrl').value  = e.receiptUrl || '';
+            document.getElementById('expenseModalTitle').innerHTML =
+                '<i class="fas fa-receipt me-2"></i>Sửa chi phí';
+            new bootstrap.Modal(document.getElementById('modalExpense')).show();
+        });
+}
+
+function submitExpense() {
+    const id = document.getElementById('expenseId').value;
+    const payload = {
+        title:       document.getElementById('expTitle').value,
+        category:    document.getElementById('expCategory').value,
+        amount:      parseFloat(document.getElementById('expAmount').value),
+        expenseDate: document.getElementById('expDate').value,
+        isRecurring: document.getElementById('expRecurring').checked,
+        description: document.getElementById('expDescription').value,
+        receiptUrl:  document.getElementById('expReceiptUrl').value
+    };
+    const ok = FormValidator.validate('modalExpense', [
+        { id: 'expTitle',    label: 'Tên chi phí', required: true },
+        { id: 'expCategory', label: 'Danh mục',    required: true },
+        { id: 'expAmount',   label: 'Số tiền',     required: true, type: 'number', min: 0.01 },
+        { id: 'expDate',     label: 'Ngày chi',     required: true }
+    ]);
+    if (!ok) return;
+    const url     = id ? `/api/finance/expenses/${id}?userId=${currentUserId}` : `/api/finance/expenses?userId=${currentUserId}`;
+    const method  = id ? 'PUT' : 'POST';
+    fetch(url, {
+        method,
+        headers: {'Content-Type':'application/json', ...authHeaders()},
+        body: JSON.stringify(payload)
+    }).then(r => r.json()).then(res => {
+        if (res.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalExpense')).hide();
+            showToast(res.message || 'Đã lưu chi phí', 'success');
+            loadExpenses(); loadOverview();
+        } else showToast(res.message || 'Lỗi', 'danger');
+    });
+}
+
+function approveExpense(expId) {
+    if (!confirm('Xác nhận phê duyệt chi phí này?')) return;
+    fetch(`/api/finance/expenses/${expId}/approve?userId=${currentUserId}`, {
+        method: 'PUT', headers: authHeaders()
+    }).then(r => r.json()).then(res => {
+        if (res.success) { showToast('Đã phê duyệt chi phí', 'success'); loadExpenses(); loadOverview(); }
+        else showToast(res.message || 'Lỗi', 'danger');
+    });
+}
+
+function rejectExpense(expId) {
+    const reason = prompt('Lý do từ chối:');
+    if (reason === null) return;
+    fetch(`/api/finance/expenses/${expId}/reject`, {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json', ...authHeaders()},
+        body: JSON.stringify({ reason, userId: currentUserId })
+    }).then(r => r.json()).then(res => {
+        if (res.success) { showToast('Đã từ chối chi phí', 'warning'); loadExpenses(); loadOverview(); }
+        else showToast(res.message || 'Lỗi', 'danger');
+    });
+}
+
+function deleteExpense(expId) {
+    if (!confirm('Bạn có chắc muốn xóa chi phí này?')) return;
+    fetch(`/api/finance/expenses/${expId}`, {
+        method: 'DELETE', headers: authHeaders()
+    }).then(r => r.json()).then(res => {
+        if (res.success) { showToast('Đã xóa chi phí', 'warning'); loadExpenses(); loadOverview(); }
+        else showToast(res.message || 'Lỗi', 'danger');
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════════════════ */
+function authHeaders() {
+    const t = window.getStoredAuthToken
+        ? window.getStoredAuthToken()
+        : (localStorage.getItem('auth_token') || localStorage.getItem('authToken') || localStorage.getItem('token'));
+    return t ? { Authorization: 'Bearer ' + t } : {};
+}
+function esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtMoney(v) {
+    if (v == null) return '–';
+    return Number(v).toLocaleString('vi-VN') + ' ₫';
+}
+function pct(v) {
+    if (v == null) return '–';
+    return (parseFloat(v) * 100).toFixed(1) + '%';
+}
+function fmtDate(d) {
+    if (!d) return '–';
+    try { return new Date(d).toLocaleDateString('vi-VN'); } catch(_) { return d; }
+}
+function renderPagination(containerId, currentPage, totalPages, callbackFn) {
+    const ul = document.getElementById(containerId);
+    if (!ul || totalPages <= 1) { if(ul) ul.innerHTML=''; return; }
+    let h = `<li class="page-item${currentPage===0?' disabled':''}">
+        <a class="page-link" href="#" onclick="${callbackFn}(${currentPage-1});return false;">&laquo;</a></li>`;
+    const s = Math.max(0, currentPage - 2), e = Math.min(totalPages - 1, currentPage + 2);
+    for (let i = s; i <= e; i++)
+        h += `<li class="page-item${i===currentPage?' active':''}">
+            <a class="page-link" href="#" onclick="${callbackFn}(${i});return false;">${i+1}</a></li>`;
+    h += `<li class="page-item${currentPage===totalPages-1?' disabled':''}">
+        <a class="page-link" href="#" onclick="${callbackFn}(${currentPage+1});return false;">&raquo;</a></li>`;
+    ul.innerHTML = h;
+}
+function showToast(msg, type='success') {
+    if (window.showAppToast) {
+        window.showAppToast(msg, type);
+        return;
+    }
+    const d = document.createElement('div');
+    d.className = `alert alert-${type} position-fixed shadow`;
+    d.style.cssText = 'top:20px;right:20px;z-index:9999;min-width:260px;';
+    d.textContent = msg;
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 3500);
+}
+</script>
+
+</body>
+</html>

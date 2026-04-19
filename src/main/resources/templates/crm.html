@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM – Quản lý Khách hàng & Nhân viên - Metric System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        /* ─── Performance Score Bar ──────────────────────────────── */
+        .perf-bar { height: 6px; border-radius: 3px; background: #e9ecef; overflow: hidden; }
+        .perf-bar-fill { height: 100%; border-radius: 3px; transition: width .4s; }
+        .perf-high   { background: #66bb6a; }
+        .perf-medium { background: #ffb74d; }
+        .perf-low    { background: #ef5350; }
+
+        /* ─── Staff Role Badge ───────────────────────────────────── */
+        .badge-SALE    { background: #1976d2; color:#fff; }
+        .badge-STAFF   { background: #388e3c; color:#fff; }
+        .badge-MANAGER { background: #7b1fa2; color:#fff; }
+
+        /* ─── Approval Status Badge ─────────────────────────────── */
+        .badge-PENDING  { background: #ff9800; color:#fff; }
+        .badge-APPROVED { background: #4caf50; color:#fff; }
+        .badge-REJECTED { background: #f44336; color:#fff; }
+
+        /* ─── CRM Interaction Timeline ───────────────────────────── */
+        .timeline { list-style: none; padding: 0; margin: 0; }
+        .timeline li { display: flex; gap: 12px; margin-bottom: 14px; }
+        .timeline-icon {
+            width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; flex-shrink: 0; color: #fff;
+        }
+        .icon-CALL    { background: #1976d2; }
+        .icon-NOTE    { background: #757575; }
+        .icon-MESSAGE { background: #43a047; }
+        .icon-MEETING { background: #8e24aa; }
+        .icon-EMAIL   { background: #e53935; }
+        .timeline-content { flex: 1; }
+        .timeline-content .tm-header {
+            font-size: 13px; font-weight: 600; display: flex;
+            justify-content: space-between; align-items: flex-start;
+        }
+        .timeline-content .tm-body  { font-size: 13px; color: #555; margin-top: 2px; }
+        .timeline-content .tm-meta  { font-size: 11px; color: #999; margin-top: 2px; }
+
+        /* ─── Stat cards ─────────────────────────────────────────── */
+        .stat-card { border-radius: 12px; padding: 18px 20px; color: #fff; }
+        .stat-card .val { font-size: 28px; font-weight: 700; }
+        .stat-card .lbl { font-size: 12px; opacity: .85; }
+
+        .section-title { font-size: 15px; font-weight: 600; border-bottom: 2px solid #e3e6f0;
+                          padding-bottom: 6px; margin-bottom: 16px; }
+
+        /* ─── Staff card grid ────────────────────────────────────── */
+        .staff-card {
+            border: 1px solid #e3e6f0; border-radius: 10px; padding: 16px;
+            transition: box-shadow .15s; cursor: pointer;
+        }
+        .staff-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+        .staff-avatar {
+            width: 46px; height: 46px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; font-weight: 700; color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{dashboard :: sidebar}"></div>
+
+<div class="main-content" id="mainContent">
+
+    <!-- ─── Header ──────────────────────────────────────────────────────── -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-0"><i class="fas fa-users-cog me-2 text-primary"></i>CRM — Khách hàng & Nhân viên</h4>
+            <small class="text-muted">Quản lý nhân sự, phân công khách, lịch sử tương tác</small>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="showCreateStaffModal()">
+            <i class="fas fa-user-plus me-1"></i> Thêm nhân viên
+        </button>
+    </div>
+
+    <!-- ─── Stats Row ────────────────────────────────────────────────────── -->
+    <div class="row g-3 mb-4" id="statsRow">
+        <div class="col-6 col-md-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#1976d2,#42a5f5)">
+                <div class="val" id="statTotalActive">–</div>
+                <div class="lbl">Nhân viên hoạt động</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#388e3c,#66bb6a)">
+                <div class="val" id="statTotalSale">–</div>
+                <div class="lbl">Nhân viên Sale</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#f57c00,#ffb74d)">
+                <div class="val" id="statTotalTailor">–</div>
+                <div class="lbl">Thợ may</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#c62828,#ef9a9a)">
+                <div class="val" id="statPendingApprovals">–</div>
+                <div class="lbl">Chờ duyệt phân khách</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── Tab Navigation ──────────────────────────────────────────────── -->
+    <ul class="nav nav-tabs mb-3" id="crmTabs">
+        <li class="nav-item">
+            <a class="nav-link active" data-tab="staff" href="javascript:void(0)" onclick="switchTab('staff')">
+                <i class="fas fa-id-badge me-1"></i> Nhân viên
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-tab="distribution" href="javascript:void(0)" onclick="switchTab('distribution')">
+                <i class="fas fa-random me-1"></i> Phân công Lead
+                <span class="badge bg-danger ms-1" id="pendingBadge" style="display:none">0</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-tab="customers" href="javascript:void(0)" onclick="switchTab('customers')">
+                <i class="fas fa-user-friends me-1"></i> Khách hàng CRM
+            </a>
+        </li>
+    </ul>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 1: NHÂN VIÊN                                                    -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div id="tabStaff">
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="staffSearchInput"
+                           placeholder="Tìm theo tên, mã..." oninput="filterStaffTable()">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select form-select-sm" id="staffRoleFilter" onchange="filterStaffTable()">
+                    <option value="">Tất cả vai trò</option>
+                    <option value="SALE">Sale</option>
+                    <option value="STAFF">Thợ may</option>
+                    <option value="MANAGER">Quản lý</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="staffTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã NV</th>
+                        <th>Họ tên</th>
+                        <th>Vai trò</th>
+                        <th>Điểm hiệu suất</th>
+                        <th>Leads / Chốt</th>
+                        <th>Tỷ lệ CĐ</th>
+                        <th>Doanh thu</th>
+                        <th>Trạng thái</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="staffTableBody">
+                    <tr><td colspan="9" class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin me-2"></i>Đang tải...
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        <div class="d-flex justify-content-between align-items-center mt-2">
+            <small class="text-muted" id="staffPageInfo"></small>
+            <div id="staffPagination" class="d-flex gap-1"></div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 2: PHÂN CÔNG LEAD                                               -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div id="tabDistribution" style="display:none">
+        <div class="row g-4">
+            <!-- Phân công tự động -->
+            <div class="col-md-5">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="section-title"><i class="fas fa-magic me-2 text-primary"></i>Phân công Lead</div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Lead cần phân</label>
+                            <select class="form-select form-select-sm" id="assignLeadSelect">
+                                <option value="">-- Chọn Lead --</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Chiến lược</label>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="assignStrategy"
+                                           id="stratRoundRobin" value="AUTO_ROUND_ROBIN" checked
+                                           onchange="toggleManualStaff()">
+                                    <label class="form-check-label small" for="stratRoundRobin">
+                                        <i class="fas fa-sync-alt me-1 text-primary"></i>Xoay vòng
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="assignStrategy"
+                                           id="stratPerformance" value="AUTO_PERFORMANCE"
+                                           onchange="toggleManualStaff()">
+                                    <label class="form-check-label small" for="stratPerformance">
+                                        <i class="fas fa-star me-1 text-warning"></i>Theo điểm
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="assignStrategy"
+                                           id="stratManual" value="MANUAL"
+                                           onchange="toggleManualStaff()">
+                                    <label class="form-check-label small" for="stratManual">
+                                        <i class="fas fa-hand-pointer me-1 text-success"></i>Thủ công
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3" id="manualStaffRow" style="display:none">
+                            <label class="form-label fw-semibold">Chọn nhân viên</label>
+                            <select class="form-select form-select-sm" id="assignStaffSelect">
+                                <option value="">-- Chọn NV --</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary btn-sm w-100" onclick="doAssignLead()">
+                            <i class="fas fa-paper-plane me-1"></i> Phân công
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- Chờ duyệt -->
+            <div class="col-md-7">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="section-title d-flex justify-content-between">
+                            <span><i class="fas fa-hourglass-half me-2 text-warning"></i>Chờ duyệt phân khách</span>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="loadPendingApprovals()">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <div id="pendingApprovalsList">
+                            <p class="text-muted text-center py-3">Không có assignment nào cần duyệt</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 3: KHÁCH HÀNG CRM                                               -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div id="tabCustomers" style="display:none">
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="crmCustomerSearch"
+                           placeholder="Tìm khách hàng..." oninput="searchCrmCustomers()">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select form-select-sm" id="crmStaffFilter" onchange="loadCrmCustomers()">
+                    <option value="">Tất cả nhân viên</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="crmCustomerTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã KH</th>
+                        <th>Họ tên</th>
+                        <th>SĐT</th>
+                        <th>Nhân viên phụ trách</th>
+                        <th>Kênh nguồn</th>
+                        <th>Tương tác</th>
+                        <th>Lần cuối</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="crmCustomerTableBody">
+                    <tr><td colspan="8" class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin me-2"></i>Đang tải...
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-2">
+            <small class="text-muted" id="crmCustomerPageInfo"></small>
+            <div id="crmCustomerPagination" class="d-flex gap-1"></div>
+        </div>
+    </div>
+
+</div><!-- /main-content -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL: Tạo / Sửa Nhân viên                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="staffModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staffModalTitle">Thêm nhân viên mới</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="staffId">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Tài khoản User ID</label>
+                        <input type="number" class="form-control form-control-sm" id="staffUserId"
+                               placeholder="ID tài khoản đăng nhập (tùy chọn)">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Họ và tên <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="staffFullName"
+                               placeholder="Nguyễn Văn A">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Số điện thoại</label>
+                        <input type="text" class="form-control form-control-sm" id="staffPhone"
+                               placeholder="0912345678">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Bộ phận</label>
+                        <input type="text" class="form-control form-control-sm" id="staffDepartment"
+                               placeholder="Kinh doanh">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Vai trò <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" id="staffRole">
+                            <option value="SALE">Sale</option>
+                            <option value="STAFF">Thợ may</option>
+                            <option value="MANAGER">Quản lý</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Doanh số kế hoạch (VNĐ)</label>
+                        <input type="number" class="form-control form-control-sm" id="staffMonthlyTarget"
+                               placeholder="50000000">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Tỷ lệ hoa hồng (%)</label>
+                        <input type="number" step="0.01" class="form-control form-control-sm"
+                               id="staffCommissionRate" placeholder="5.00">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Điểm hiệu suất (0-100)</label>
+                        <input type="number" min="0" max="100" class="form-control form-control-sm"
+                               id="staffPerfScore" placeholder="50">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Ghi chú</label>
+                        <textarea class="form-control form-control-sm" id="staffNotes" rows="2"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveStaff()">
+                    <i class="fas fa-save me-1"></i> Lưu
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL: Chi tiết khách hàng + Tương tác                                 -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="customerDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user-circle me-2"></i>
+                    <span id="cdmCustomerName">Khách hàng</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <!-- Thông tin khách + gán NV -->
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded">
+                            <div class="section-title">Thông tin cơ bản</div>
+                            <div id="cdmCustomerInfo" class="small text-muted"></div>
+                            <hr class="my-2">
+                            <div class="section-title">Nhân viên phụ trách</div>
+                            <div class="d-flex gap-2 align-items-end">
+                                <select class="form-select form-select-sm flex-grow-1" id="cdmAssignStaff">
+                                    <option value="">-- Chưa gán --</option>
+                                </select>
+                                <button class="btn btn-sm btn-outline-primary" onclick="doAssignStaffToCustomer()">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Timeline tương tác -->
+                    <div class="col-md-8">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="section-title mb-0">Lịch sử tương tác</div>
+                            <button class="btn btn-sm btn-primary" onclick="showAddInteractionForm()">
+                                <i class="fas fa-plus me-1"></i> Thêm
+                            </button>
+                        </div>
+                        <!-- Form thêm tương tác (ẩn mặc định) -->
+                        <div class="card border-primary mb-3" id="addInteractionForm" style="display:none">
+                            <div class="card-body p-2">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <select class="form-select form-select-sm" id="newInteractionType">
+                                            <option value="CALL">📞 Gọi điện</option>
+                                            <option value="NOTE">📝 Ghi chú</option>
+                                            <option value="MESSAGE">💬 Tin nhắn</option>
+                                            <option value="MEETING">🤝 Gặp mặt</option>
+                                            <option value="EMAIL">📧 Email</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <input type="datetime-local" class="form-control form-control-sm"
+                                               id="newInteractionFollowup" placeholder="Followup">
+                                    </div>
+                                    <div class="col-12">
+                                        <textarea class="form-control form-control-sm" id="newInteractionContent"
+                                                  rows="2" placeholder="Nội dung tương tác..."></textarea>
+                                    </div>
+                                    <div class="col-12">
+                                        <input type="text" class="form-control form-control-sm"
+                                               id="newInteractionOutcome" placeholder="Kết quả / phản hồi khách...">
+                                    </div>
+                                    <div class="col-12 d-flex gap-2">
+                                        <button class="btn btn-success btn-sm" onclick="saveNewInteraction()">
+                                            <i class="fas fa-save me-1"></i> Lưu
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-sm"
+                                                onclick="hideAddInteractionForm()">Hủy</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Timeline -->
+                        <ul class="timeline" id="interactionTimeline">
+                            <li><span class="text-muted small">Chưa có tương tác nào</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL: Cập nhật điểm hiệu suất                                         -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="perfScoreModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">Cập nhật điểm hiệu suất</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-2">Điểm 0-100. Dưới 40 = cần manager duyệt khi phân khách.</p>
+                <input type="hidden" id="perfScoreStaffId">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="range" class="form-range flex-grow-1" id="perfScoreSlider"
+                           min="0" max="100" step="1" value="50"
+                           oninput="document.getElementById('perfScoreDisplay').textContent=this.value">
+                    <span class="fw-bold fs-5 text-primary" id="perfScoreDisplay">50</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+                <button class="btn btn-primary btn-sm" onclick="savePerfScore()">Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script th:src="@{/js/form-validator.js}"></script>
+
+<script>
+var CRM_API = '/api';
+// ─── State ────────────────────────────────────────────────────────────────
+var staffPage = 0, staffPageSize = 20, staffData = [], allStaff = [];
+var crmPage = 0, crmPageSize = 15;
+var currentCustomerId = null;
+var ctx = document.getElementById('mainContent');
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+loadStats();
+loadStaffTable(0);
+loadStaffForSelects();
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+    ['staff', 'distribution', 'customers'].forEach(t => {
+        document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = 'none';
+        document.querySelector(`[data-tab="${t}"]`).classList.remove('active');
+    });
+    document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).style.display = '';
+    document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+    if (tab === 'distribution') { loadPendingApprovals(); loadLeadsForSelect(); }
+    if (tab === 'customers')   { loadCrmCustomers(); populateCrmStaffFilter(); }
+}
+
+// ─── Stats ────────────────────────────────────────────────────────────────
+function loadStats() {
+    $.get(CRM_API + '/staff/stats')
+        .done(r => {
+            if (!r.success) return;
+            const d = r.data;
+            document.getElementById('statTotalActive').textContent    = d.totalActive   || 0;
+            document.getElementById('statTotalSale').textContent      = d.totalSale     || 0;
+            document.getElementById('statTotalTailor').textContent    = d.totalTailor   || 0;
+            document.getElementById('statPendingApprovals').textContent = d.pendingApprovals || 0;
+            const pb = document.getElementById('pendingBadge');
+            if (d.pendingApprovals > 0) {
+                pb.textContent = d.pendingApprovals;
+                pb.style.display = '';
+            }
+        });
+}
+
+// ─── Staff Table ──────────────────────────────────────────────────────────
+function loadStaffTable(page) {
+    staffPage = page;
+    $.get(CRM_API + `/staff?page=${page}&size=${staffPageSize}`)
+        .done(r => {
+            if (!r.success) return;
+            staffData = r.data.content;
+            renderStaffTable(staffData);
+            renderStaffPagination(r.data);
+        });
+}
+
+function renderStaffTable(data) {
+    const tbody = document.getElementById('staffTableBody');
+    if (!data.length) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">
+            <i class="fas fa-users-slash me-2"></i>Không có nhân viên</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = data.map(s => {
+        const score = parseFloat(s.performanceScore) || 0;
+        const fillClass = score >= 70 ? 'perf-high' : score >= 40 ? 'perf-medium' : 'perf-low';
+        const roleClass = `badge-${s.staffRole}`;
+        const cvRate = s.conversionRate ? s.conversionRate.toFixed(1) : '0.0';
+        const revenue = s.totalRevenue ? formatVnd(s.totalRevenue) : '–';
+        return `<tr style="cursor:pointer" onclick="editStaff(${s.id})">
+            <td><code class="small">${s.staffCode}</code></td>
+            <td>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="staff-avatar" style="background:${avatarColor(s.fullName)};width:32px;height:32px;font-size:13px;">
+                        ${s.fullName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <div class="fw-semibold small">${escHtml(s.fullName)}</div>
+                        ${s.username ? `<div class="text-muted" style="font-size:11px">@${escHtml(s.username)}</div>` : ''}
+                    </div>
+                </div>
+            </td>
+            <td><span class="badge rounded-pill small ${roleClass}">${roleLabel(s.staffRole)}</span></td>
+            <td style="min-width:120px">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="perf-bar flex-grow-1">
+                        <div class="perf-bar-fill ${fillClass}" style="width:${score}%"></div>
+                    </div>
+                    <span class="small fw-bold text-${fillClass === 'perf-high' ? 'success' : fillClass === 'perf-low' ? 'danger' : 'warning'}"
+                          style="min-width:28px">${score.toFixed(0)}</span>
+                    <button class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size:10px"
+                            onclick="event.stopPropagation(); openPerfScoreModal(${s.id}, ${score})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
+            </td>
+            <td class="text-center">${s.totalLeads} / ${s.totalConverted}</td>
+            <td class="text-center">${cvRate}%</td>
+            <td class="text-end">${revenue}</td>
+            <td>${s.isActive
+                ? '<span class="badge bg-success-subtle text-success border border-success-subtle">Hoạt động</span>'
+                : '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Dừng</span>'
+            }</td>
+            <td>
+                <button class="btn btn-sm btn-outline-danger py-0 px-2"
+                        onclick="event.stopPropagation(); deactivateStaff(${s.id}, '${escHtml(s.fullName)}')">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function filterStaffTable() {
+    const q = document.getElementById('staffSearchInput').value.toLowerCase();
+    const role = document.getElementById('staffRoleFilter').value;
+    const filtered = staffData.filter(s =>
+        (!q || s.fullName.toLowerCase().includes(q) || s.staffCode.toLowerCase().includes(q)) &&
+        (!role || s.staffRole === role)
+    );
+    renderStaffTable(filtered);
+}
+
+function renderStaffPagination(page) {
+    document.getElementById('staffPageInfo').textContent =
+        `Hiển thị ${page.content.length} / ${page.totalElements} nhân viên`;
+    const pages = document.getElementById('staffPagination');
+    pages.innerHTML = '';
+    for (let i = 0; i < page.totalPages; i++) {
+        const btn = document.createElement('button');
+        btn.className = `btn btn-sm ${i === staffPage ? 'btn-primary' : 'btn-outline-secondary'}`;
+        btn.textContent = i + 1;
+        btn.onclick = () => loadStaffTable(i);
+        pages.appendChild(btn);
+    }
+}
+
+// ─── Staff Modal (Create/Edit) ────────────────────────────────────────────
+function showCreateStaffModal() {
+    document.getElementById('staffId').value = '';
+    document.getElementById('staffUserId').value = '';
+    document.getElementById('staffFullName').value = '';
+    document.getElementById('staffPhone').value = '';
+    document.getElementById('staffDepartment').value = '';
+    document.getElementById('staffRole').value = 'SALE';
+    document.getElementById('staffMonthlyTarget').value = '';
+    document.getElementById('staffCommissionRate').value = '5.00';
+    document.getElementById('staffPerfScore').value = '50';
+    document.getElementById('staffNotes').value = '';
+    document.getElementById('staffModalTitle').textContent = 'Thêm nhân viên mới';
+    new bootstrap.Modal(document.getElementById('staffModal')).show();
+}
+
+function editStaff(id) {
+    const s = staffData.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('staffId').value = s.id;
+    document.getElementById('staffUserId').value = s.userId || '';
+    document.getElementById('staffFullName').value = s.fullName;
+    document.getElementById('staffPhone').value = s.phone || '';
+    document.getElementById('staffDepartment').value = s.department || '';
+    document.getElementById('staffRole').value = s.staffRole;
+    document.getElementById('staffMonthlyTarget').value = s.monthlyTarget || '';
+    document.getElementById('staffCommissionRate').value = s.baseCommissionRate
+        ? (parseFloat(s.baseCommissionRate) * 100).toFixed(2) : '5.00';
+    document.getElementById('staffPerfScore').value = s.performanceScore || 50;
+    document.getElementById('staffNotes').value = s.notes || '';
+    document.getElementById('staffModalTitle').textContent = 'Chỉnh sửa nhân viên';
+    new bootstrap.Modal(document.getElementById('staffModal')).show();
+}
+
+function saveStaff() {
+    const id = document.getElementById('staffId').value;
+    const commRate = parseFloat(document.getElementById('staffCommissionRate').value || 5) / 100;
+    const payload = {
+        userId: document.getElementById('staffUserId').value || null,
+        fullName: document.getElementById('staffFullName').value.trim(),
+        phone: document.getElementById('staffPhone').value.trim(),
+        department: document.getElementById('staffDepartment').value.trim(),
+        staffRole: document.getElementById('staffRole').value,
+        monthlyTarget: parseFloat(document.getElementById('staffMonthlyTarget').value) || 0,
+        baseCommissionRate: commRate,
+        performanceScore: parseFloat(document.getElementById('staffPerfScore').value) || 50,
+        notes: document.getElementById('staffNotes').value.trim()
+    };
+    const ok = FormValidator.validate('staffModal', [
+        { id: 'staffFullName', label: 'Họ tên',  required: true },
+        { id: 'staffRole',     label: 'Chức vụ', required: true }
+    ]);
+    if (!ok) return;
+    const url  = id ? CRM_API + `/staff/${id}` : CRM_API + '/staff';
+    const method = id ? 'PUT' : 'POST';
+    $.ajax({ url, method, contentType: 'application/json', data: JSON.stringify(payload) })
+        .done(r => {
+            if (r.success) {
+                bootstrap.Modal.getInstance(document.getElementById('staffModal')).hide();
+                loadStaffTable(staffPage);
+                loadStats();
+                loadStaffForSelects();
+            } else alert(r.message || 'Lỗi khi lưu');
+        });
+}
+
+function deactivateStaff(id, name) {
+    if (!confirm(`Vô hiệu hóa nhân viên "${name}"?`)) return;
+    $.ajax({ url: CRM_API + `/staff/${id}`, method: 'DELETE' })
+        .done(r => { if (r.success) loadStaffTable(staffPage); });
+}
+
+// ─── Performance Score ─────────────────────────────────────────────────────
+function openPerfScoreModal(staffId, currentScore) {
+    document.getElementById('perfScoreStaffId').value = staffId;
+    document.getElementById('perfScoreSlider').value = currentScore;
+    document.getElementById('perfScoreDisplay').textContent = currentScore;
+    new bootstrap.Modal(document.getElementById('perfScoreModal')).show();
+}
+
+function savePerfScore() {
+    const staffId = document.getElementById('perfScoreStaffId').value;
+    const score   = document.getElementById('perfScoreSlider').value;
+    $.ajax({ url: CRM_API + `/staff/${staffId}/performance-score?score=${score}`, method: 'PATCH' })
+        .done(r => {
+            if (r.success) {
+                bootstrap.Modal.getInstance(document.getElementById('perfScoreModal')).hide();
+                loadStaffTable(staffPage);
+                loadStats();
+            }
+        });
+}
+
+// ─── Lead Distribution ─────────────────────────────────────────────────────
+function loadLeadsForSelect() {
+    $.get(CRM_API + '/leads?page=0&size=50&status=NEW')
+        .done(r => {
+            if (!r.success) return;
+            const sel = document.getElementById('assignLeadSelect');
+            sel.innerHTML = '<option value="">-- Chọn Lead --</option>' +
+                (r.data.content || []).map(l =>
+                    `<option value="${l.id}">${escHtml(l.leadCode)} — ${escHtml(l.fullName)}</option>`
+                ).join('');
+        });
+}
+
+function toggleManualStaff() {
+    const manual = document.querySelector('[name=assignStrategy]:checked').value === 'MANUAL';
+    document.getElementById('manualStaffRow').style.display = manual ? '' : 'none';
+}
+
+function doAssignLead() {
+    const leadId   = document.getElementById('assignLeadSelect').value;
+    const strategy = document.querySelector('[name=assignStrategy]:checked').value;
+    const staffId  = document.getElementById('assignStaffSelect').value;
+    if (!leadId) { alert('Vui lòng chọn lead'); return; }
+    if (strategy === 'MANUAL' && !staffId) { alert('Vui lòng chọn nhân viên'); return; }
+    const params = new URLSearchParams({ strategy });
+    if (staffId) params.append('staffId', staffId);
+    $.ajax({ url: CRM_API + `/leads/${leadId}/assign?${params}`, method: 'POST' })
+        .done(r => {
+            if (r.success) {
+                const d = r.data;
+                const msg = d.approvalStatus === 'PENDING'
+                    ? `✅ Đã tạo yêu cầu phân công — chờ Manager duyệt (NV: ${d.staffName})`
+                    : `✅ Đã phân công cho ${d.staffName}`;
+                alert(msg);
+                loadPendingApprovals();
+                loadStats();
+                loadLeadsForSelect();
+            } else alert(r.message || 'Lỗi khi phân công');
+        });
+}
+
+function loadPendingApprovals() {
+    $.get(CRM_API + '/assignments/pending')
+        .done(r => {
+            const container = document.getElementById('pendingApprovalsList');
+            if (!r.success || !r.data.length) {
+                container.innerHTML = '<p class="text-muted text-center py-3">Không có assignment nào cần duyệt</p>';
+                return;
+            }
+            container.innerHTML = r.data.map(a => `
+                <div class="border rounded p-2 mb-2 d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                        <div class="small fw-semibold">${escHtml(a.leadCode || '')} — ${escHtml(a.leadName || '')}</div>
+                        <div class="text-muted" style="font-size:12px">→ <b>${escHtml(a.staffName || '')}</b>
+                            | ${escHtml(a.assignmentType)}
+                            | ${fmtDate(a.createdAt)}</div>
+                    </div>
+                    <div class="d-flex gap-1 flex-shrink-0">
+                        <button class="btn btn-sm btn-success py-0 px-2"
+                                onclick="approveAssignment(${a.id})">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger py-0 px-2"
+                                onclick="rejectAssignment(${a.id})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>`).join('');
+        });
+}
+
+function approveAssignment(id) {
+    // In a real app, pass logged-in user ID
+    $.ajax({ url: CRM_API + `/assignments/${id}/approve?managerUserId=1`, method: 'POST' })
+        .done(r => {
+            if (r.success) { loadPendingApprovals(); loadStats(); }
+            else alert(r.message);
+        });
+}
+
+function rejectAssignment(id) {
+    const reason = prompt('Lý do từ chối:');
+    if (reason === null) return;
+    $.ajax({ url: CRM_API + `/assignments/${id}/reject?managerUserId=1&reason=${encodeURIComponent(reason)}`, method: 'POST' })
+        .done(r => {
+            if (r.success) { loadPendingApprovals(); loadStats(); }
+            else alert(r.message);
+        });
+}
+
+// ─── CRM Customers ────────────────────────────────────────────────────────
+function loadCrmCustomers() {
+    const staffFilter = document.getElementById('crmStaffFilter').value;
+    const q = document.getElementById('crmCustomerSearch').value;
+    let url = CRM_API + `/customers?page=${crmPage}&size=${crmPageSize}`;
+    if (q) url = CRM_API + `/customers/search?q=${encodeURIComponent(q)}&page=0&size=${crmPageSize}`;
+    $.get(url)
+        .done(r => {
+            if (!r.success) return;
+            let data = r.data.content;
+            if (staffFilter) data = data.filter(c => String(c.assignedStaffId) === staffFilter);
+            renderCrmCustomerTable(data);
+            renderCrmCustomerPagination(r.data);
+        });
+}
+
+var searchCrmTimer;
+function searchCrmCustomers() {
+    clearTimeout(searchCrmTimer);
+    searchCrmTimer = setTimeout(loadCrmCustomers, 300);
+}
+
+function renderCrmCustomerTable(data) {
+    const tbody = document.getElementById('crmCustomerTableBody');
+    if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Không có dữ liệu</td></tr>';
+        return;
+    }
+    tbody.innerHTML = data.map(c => `
+        <tr style="cursor:pointer" onclick="openCustomerDetail(${c.id})">
+            <td><code class="small">${escHtml(c.customerCode)}</code></td>
+            <td class="fw-semibold">${escHtml(c.firstName)} ${escHtml(c.lastName)}</td>
+            <td>${escHtml(c.phone || '–')}</td>
+            <td>${c.assignedStaffName
+                ? `<span class="badge bg-primary-subtle text-primary border border-primary-subtle">${escHtml(c.assignedStaffName)}</span>`
+                : '<span class="text-muted small">Chưa gán</span>'}</td>
+            <td>${c.sourceChannelName
+                ? `<span class="badge bg-info-subtle text-info border border-info-subtle">${escHtml(c.sourceChannelName)}</span>`
+                : '–'}</td>
+            <td class="text-center">
+                <span class="badge bg-secondary-subtle text-secondary">${c.interactionCount || 0}</span>
+            </td>
+            <td class="small text-muted">${c.lastInteractionAt ? fmtDate(c.lastInteractionAt) : '–'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary py-0 px-2"
+                        onclick="event.stopPropagation(); openCustomerDetail(${c.id})">
+                    <i class="fas fa-comments"></i>
+                </button>
+            </td>
+        </tr>`).join('');
+}
+
+function renderCrmCustomerPagination(page) {
+    document.getElementById('crmCustomerPageInfo').textContent =
+        `Hiển thị ${page.content.length} / ${page.totalElements} khách hàng`;
+    const pages = document.getElementById('crmCustomerPagination');
+    pages.innerHTML = '';
+    for (let i = 0; i < Math.min(page.totalPages, 10); i++) {
+        const btn = document.createElement('button');
+        btn.className = `btn btn-sm ${i === crmPage ? 'btn-primary' : 'btn-outline-secondary'}`;
+        btn.textContent = i + 1;
+        btn.onclick = () => { crmPage = i; loadCrmCustomers(); };
+        pages.appendChild(btn);
+    }
+}
+
+function populateCrmStaffFilter() {
+    $.get(CRM_API + '/staff?page=0&size=100')
+        .done(r => {
+            if (!r.success) return;
+            const sel = document.getElementById('crmStaffFilter');
+            sel.innerHTML = '<option value="">Tất cả nhân viên</option>' +
+                r.data.content.map(s =>
+                    `<option value="${s.id}">${escHtml(s.fullName)}</option>`
+                ).join('');
+        });
+}
+
+// ─── Customer Detail Modal ────────────────────────────────────────────────
+function openCustomerDetail(customerId) {
+    currentCustomerId = customerId;
+    $.get(CRM_API + `/customers/${customerId}`)
+        .done(r => {
+            if (!r.success) return;
+            const c = r.data;
+            document.getElementById('cdmCustomerName').textContent =
+                `${c.firstName} ${c.lastName}`;
+            document.getElementById('cdmCustomerInfo').innerHTML = `
+                <div><i class="fas fa-phone me-1"></i>${escHtml(c.phone || '–')}</div>
+                <div><i class="fas fa-envelope me-1"></i>${escHtml(c.email || '–')}</div>
+                <div><i class="fas fa-map-marker-alt me-1"></i>${escHtml(c.address || '–')}</div>
+                <div class="mt-1 text-muted">Tương tác: ${c.interactionCount || 0}</div>
+                ${c.cac ? `<div class="text-muted">CAC: ${formatVnd(c.cac)}</div>` : ''}
+            `;
+            // Pre-select assigned staff
+            const sel = document.getElementById('cdmAssignStaff');
+            if (c.assignedStaffId) {
+                Array.from(sel.options).forEach(o => {
+                    o.selected = o.value == c.assignedStaffId;
+                });
+            }
+        });
+    loadInteractionTimeline(customerId);
+    new bootstrap.Modal(document.getElementById('customerDetailModal')).show();
+}
+
+function loadInteractionTimeline(customerId) {
+    $.get(CRM_API + `/customers/${customerId}/interactions`)
+        .done(r => {
+            const ul = document.getElementById('interactionTimeline');
+            if (!r.success || !r.data.length) {
+                ul.innerHTML = '<li><span class="text-muted small">Chưa có tương tác nào</span></li>';
+                return;
+            }
+            const iconMap = { CALL:'fa-phone', NOTE:'fa-sticky-note',
+                              MESSAGE:'fa-comment', MEETING:'fa-handshake', EMAIL:'fa-envelope' };
+            ul.innerHTML = r.data.map(i => `
+                <li>
+                    <div class="timeline-icon icon-${i.interactionType}">
+                        <i class="fas ${iconMap[i.interactionType] || 'fa-circle'}"></i>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="tm-header">
+                            <span>${typeLabel(i.interactionType)}</span>
+                            <span class="text-muted" style="font-size:11px">${fmtDate(i.createdAt)}</span>
+                        </div>
+                        ${i.content ? `<div class="tm-body">${escHtml(i.content)}</div>` : ''}
+                        ${i.outcome ? `<div class="tm-meta"><i>Kết quả: ${escHtml(i.outcome)}</i></div>` : ''}
+                        ${i.staffName ? `<div class="tm-meta"><i class="fas fa-user me-1"></i>${escHtml(i.staffName)}</div>` : ''}
+                        ${i.nextFollowupAt ? `<div class="tm-meta text-warning"><i class="fas fa-calendar-alt me-1"></i>Followup: ${fmtDate(i.nextFollowupAt)}</div>` : ''}
+                    </div>
+                </li>`).join('');
+        });
+}
+
+function doAssignStaffToCustomer() {
+    const staffId = document.getElementById('cdmAssignStaff').value;
+    if (!currentCustomerId) return;
+    $.ajax({ url: CRM_API + `/customers/${currentCustomerId}/assign-staff?staffId=${staffId}`, method: 'PATCH' })
+        .done(r => {
+            if (r.success) { alert('Đã gán nhân viên thành công'); loadCrmCustomers(); }
+            else alert(r.message);
+        });
+}
+
+function showAddInteractionForm()  { document.getElementById('addInteractionForm').style.display = ''; }
+function hideAddInteractionForm()  { document.getElementById('addInteractionForm').style.display = 'none'; }
+
+function saveNewInteraction() {
+    if (!currentCustomerId) return;
+    const payload = {
+        interactionType: document.getElementById('newInteractionType').value,
+        content: document.getElementById('newInteractionContent').value.trim(),
+        outcome: document.getElementById('newInteractionOutcome').value.trim(),
+        nextFollowupAt: document.getElementById('newInteractionFollowup').value || null
+    };
+    $.ajax({
+        url: CRM_API + `/customers/${currentCustomerId}/interactions`,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(payload)
+    }).done(r => {
+        if (r.success) {
+            hideAddInteractionForm();
+            document.getElementById('newInteractionContent').value = '';
+            document.getElementById('newInteractionOutcome').value = '';
+            document.getElementById('newInteractionFollowup').value = '';
+            loadInteractionTimeline(currentCustomerId);
+        } else alert(r.message);
+    });
+}
+
+// ─── Staff Select Loaders ─────────────────────────────────────────────────
+function loadStaffForSelects() {
+    $.get(CRM_API + '/staff/by-role/SALE')
+        .done(r => {
+            if (!r.success) return;
+            allStaff = r.data;
+            const sels = ['assignStaffSelect', 'cdmAssignStaff'];
+            sels.forEach(selId => {
+                const sel = document.getElementById(selId);
+                if (!sel) return;
+                const firstOpt = sel.options[0].outerHTML;
+                sel.innerHTML = firstOpt + r.data.map(s =>
+                    `<option value="${s.id}">${escHtml(s.fullName)} (${s.performanceScore}đ)</option>`
+                ).join('');
+            });
+        });
+}
+
+// ─── Utils ────────────────────────────────────────────────────────────────
+function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                    .replace(/"/g,'&quot;');
+}
+function formatVnd(n) {
+    return new Intl.NumberFormat('vi-VN', { style:'currency', currency:'VND' }).format(n);
+}
+function fmtDate(s) {
+    if (!s) return '';
+    const d = new Date(s);
+    return d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit' });
+}
+function avatarColor(name) {
+    const colors = ['#1976d2','#388e3c','#f57c00','#8e24aa','#00838f','#c62828','#2e7d32','#0277bd'];
+    const idx = (name || '').charCodeAt(0) % colors.length;
+    return colors[idx];
+}
+function roleLabel(r) {
+    return { SALE:'Sale', STAFF:'Thợ may', MANAGER:'Quản lý' }[r] || r;
+}
+function typeLabel(t) {
+    return { CALL:'Gọi điện', NOTE:'Ghi chú', MESSAGE:'Tin nhắn',
+             MEETING:'Gặp mặt', EMAIL:'Email' }[t] || t;
+}
+</script>
+</body>
+</html>

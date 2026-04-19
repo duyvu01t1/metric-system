@@ -1,0 +1,19 @@
+# Development Configuration
+# This profile is used for development without OAuth2 credentials
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:development-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:development-client-secret}
+
+logging:
+  level:
+    root: INFO
+    com.tailorshop.metric: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG
+    org.springframework.web: DEBUG

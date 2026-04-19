@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Báo cáo & Đánh giá - Metric System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <style>
+        .analytics-card {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            padding: 18px;
+            margin-bottom: 18px;
+        }
+        .metric-card {
+            border-radius: 12px;
+            padding: 18px;
+            color: #fff;
+            min-height: 118px;
+        }
+        .metric-value { font-size: 28px; font-weight: 700; }
+        .metric-label { font-size: 13px; opacity: .92; }
+        .metric-sub { font-size: 12px; opacity: .92; margin-top: 8px; }
+        .bg-m1 { background: linear-gradient(135deg, #1976d2, #64b5f6); }
+        .bg-m2 { background: linear-gradient(135deg, #388e3c, #81c784); }
+        .bg-m3 { background: linear-gradient(135deg, #f57c00, #ffb74d); }
+        .bg-m4 { background: linear-gradient(135deg, #7b1fa2, #ba68c8); }
+        .table td, .table th { vertical-align: middle; font-size: 13.5px; }
+        .badge-soft {
+            padding: 6px 8px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 11px;
+        }
+        .score-good { background: #d1fae5; color: #065f46; }
+        .score-mid  { background: #fef3c7; color: #92400e; }
+        .score-low  { background: #fee2e2; color: #991b1b; }
+        .chart-box { position: relative; height: 320px; }
+        .filter-toolbar {
+            background: linear-gradient(135deg, rgba(25, 118, 210, 0.08), rgba(123, 31, 162, 0.06));
+            border: 1px solid rgba(25, 118, 210, 0.12);
+        }
+        .highlight-card {
+            position: relative;
+            overflow: hidden;
+            min-height: 110px;
+        }
+        .highlight-card::after {
+            content: '';
+            position: absolute;
+            inset: auto -30px -30px auto;
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(25, 118, 210, 0.06);
+        }
+        .highlight-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .filter-note {
+            font-size: 12.5px;
+        }
+    </style>
+</head>
+<body>
+<div th:replace="~{dashboard :: sidebar}"></div>
+
+<div class="main-content" id="mainContent">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h4 class="mb-0"><i class="fas fa-chart-line me-2 text-primary"></i>Báo cáo & Đánh giá (Analytics)</h4>
+            <small class="text-muted">Theo dõi doanh thu theo kênh, hiệu suất sale, tỷ lệ chuyển đổi và xu hướng tăng trưởng</small>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-success btn-sm" onclick="downloadExcel()">
+                <i class="fas fa-file-excel me-1"></i>Xuất Excel
+            </button>
+            <button class="btn btn-outline-danger btn-sm" onclick="downloadPdf()">
+                <i class="fas fa-file-pdf me-1"></i>Xuất PDF
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="downloadCSV()">
+                <i class="fas fa-file-csv me-1"></i>CSV nhanh
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="loadAnalyticsDashboard(true)">
+                <i class="fas fa-sync-alt me-1"></i>Làm mới dữ liệu
+            </button>
+        </div>
+    </div>
+
+    <div class="analytics-card filter-toolbar">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3 col-lg-2">
+                <label class="form-label form-label-sm mb-1">Kỳ nhanh</label>
+                <select class="form-select form-select-sm" id="periodPreset" onchange="applyPresetRange()">
+                    <option value="all">Toàn bộ</option>
+                    <option value="7days">7 ngày gần nhất</option>
+                    <option value="30days">30 ngày gần nhất</option>
+                    <option value="90days">90 ngày gần nhất</option>
+                    <option value="thisMonth">Tháng này</option>
+                    <option value="thisQuarter">Quý này</option>
+                    <option value="thisYear">Năm nay</option>
+                    <option value="custom">Tùy chọn</option>
+                </select>
+            </div>
+            <div class="col-md-3 col-lg-2">
+                <label class="form-label form-label-sm mb-1">Từ ngày</label>
+                <input type="date" class="form-control form-control-sm" id="fromDate" onchange="markCustomRange()">
+            </div>
+            <div class="col-md-3 col-lg-2">
+                <label class="form-label form-label-sm mb-1">Đến ngày</label>
+                <input type="date" class="form-control form-control-sm" id="toDate" onchange="markCustomRange()">
+            </div>
+            <div class="col-md-3 col-lg-3">
+                <button class="btn btn-primary btn-sm" id="btnApplyFilter" onclick="applyAnalyticsFilter()">
+                    <i class="fas fa-filter me-1"></i>Áp dụng bộ lọc
+                </button>
+                <button class="btn btn-outline-secondary btn-sm ms-1" onclick="resetAnalyticsFilter()">
+                    <i class="fas fa-rotate-left me-1"></i>Đặt lại
+                </button>
+            </div>
+            <div class="col-lg-3 text-lg-end">
+                <small class="text-muted d-block">Cập nhật gần nhất</small>
+                <strong id="analyticsUpdatedAt">—</strong>
+            </div>
+        </div>
+        <div class="filter-note text-muted mt-2" id="reportRangeLabel">Đang xem toàn bộ dữ liệu.</div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="metric-card bg-m1">
+                <div class="metric-label">Tổng doanh thu</div>
+                <div class="metric-value" id="metricRevenue">–</div>
+                <div class="metric-sub" id="metricRevenueSub">TB/đơn: –</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="metric-card bg-m2">
+                <div class="metric-label">Tổng đơn hàng</div>
+                <div class="metric-value" id="metricOrders">–</div>
+                <div class="metric-sub" id="metricOrdersSub">Hoàn thành: –</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="metric-card bg-m3">
+                <div class="metric-label">Tổng lead</div>
+                <div class="metric-value" id="metricLeads">–</div>
+                <div class="metric-sub" id="metricLeadsSub">Lead tháng này: –</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="metric-card bg-m4">
+                <div class="metric-label">Tỷ lệ chuyển đổi</div>
+                <div class="metric-value" id="metricConversion">–</div>
+                <div class="metric-sub" id="metricConversionSub">Khách chốt: –</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-xl-3">
+            <div class="analytics-card highlight-card">
+                <div class="text-muted small mb-1">Kênh hiệu quả nhất</div>
+                <div class="highlight-value" id="highlightChannel">–</div>
+                <small class="text-muted" id="highlightChannelSub">Chưa có dữ liệu</small>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="analytics-card highlight-card">
+                <div class="text-muted small mb-1">Nhân sự nổi bật</div>
+                <div class="highlight-value" id="highlightStaff">–</div>
+                <small class="text-muted" id="highlightStaffSub">Chưa có dữ liệu</small>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="analytics-card highlight-card">
+                <div class="text-muted small mb-1">Giá trị TB / đơn</div>
+                <div class="highlight-value" id="highlightAvgOrder">–</div>
+                <small class="text-muted" id="highlightAvgOrderSub">Hiệu quả bán hàng</small>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="analytics-card highlight-card">
+                <div class="text-muted small mb-1">Tỷ lệ hoàn thành</div>
+                <div class="highlight-value" id="highlightCompletion">–</div>
+                <small class="text-muted" id="highlightCompletionSub">Theo đơn hàng</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="analytics-card">
+                <h5><i class="fas fa-bullhorn me-2 text-warning"></i>Doanh thu theo kênh marketing</h5>
+                <div class="chart-box"><canvas id="channelChart"></canvas></div>
+                <div class="table-responsive mt-3">
+                    <table class="table table-sm">
+                        <thead class="table-light">
+                        <tr><th>Kênh</th><th class="text-end">Lead</th><th class="text-end">Đơn</th><th class="text-end">Doanh thu</th></tr>
+                        </thead>
+                        <tbody id="tbodyChannels">
+                        <tr><td colspan="4" class="text-center text-muted">Đang tải...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="analytics-card">
+                <h5><i class="fas fa-user-tie me-2 text-success"></i>Doanh thu theo nhân viên</h5>
+                <div class="chart-box"><canvas id="staffRevenueChart"></canvas></div>
+                <div class="table-responsive mt-3">
+                    <table class="table table-sm">
+                        <thead class="table-light">
+                        <tr><th>Nhân viên</th><th>Vai trò</th><th class="text-end">Đơn</th><th class="text-end">Doanh thu</th></tr>
+                        </thead>
+                        <tbody id="tbodyStaffRevenue">
+                        <tr><td colspan="4" class="text-center text-muted">Đang tải...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="analytics-card">
+                <h5><i class="fas fa-chart-area me-2 text-primary"></i>Xu hướng doanh thu / lead theo thời gian</h5>
+                <div class="chart-box"><canvas id="trendChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="analytics-card">
+                <h5><i class="fas fa-layer-group me-2 text-secondary"></i>Phân bổ trạng thái đơn hàng</h5>
+                <div class="chart-box"><canvas id="orderStatusChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="analytics-card">
+                <h5><i class="fas fa-users-cog me-2 text-info"></i>Đánh giá nhân sự</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Nhân viên</th>
+                            <th>Role</th>
+                            <th>Performance</th>
+                            <th class="text-end">Lead</th>
+                            <th class="text-end">Convert</th>
+                            <th class="text-end">CR</th>
+                            <th class="text-end">Doanh thu</th>
+                            <th class="text-end">Target</th>
+                        </tr>
+                        </thead>
+                        <tbody id="tbodyStaffPerf">
+                        <tr><td colspan="9" class="text-center text-muted">Đang tải...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="analytics-card">
+                <h5><i class="fas fa-funnel-dollar me-2 text-danger"></i>Chuyển đổi lead</h5>
+                <div class="chart-box"><canvas id="conversionChart"></canvas></div>
+                <div class="mt-3" id="leadConversionSummary">
+                    <div class="text-muted text-center">Đang tải...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script th:inline="none">
+var channelChart = null;
+var staffRevenueChart = null;
+var conversionChart = null;
+var trendChart = null;
+var orderStatusChart = null;
+var analyticsCache = null;
+
+initAnalyticsFilters();
+loadAnalyticsDashboard();
+
+function authHeaders() {
+    const token = window.getStoredAuthToken
+        ? window.getStoredAuthToken()
+        : (localStorage.getItem('auth_token') || localStorage.getItem('authToken') || localStorage.getItem('token'));
+    return token ? { Authorization: 'Bearer ' + token } : {};
+}
+
+function showToast(message, type) {
+    const normalized = type === 'error' ? 'danger' : (type || 'info');
+    if (window.showAppToast) {
+        window.showAppToast(message, normalized);
+        return;
+    }
+    console.log(`[${normalized}] ${message}`);
+}
+
+function fmtMoney(v) {
+    if (v == null) return '–';
+    return Number(v).toLocaleString('vi-VN') + ' ₫';
+}
+
+function pct(v) {
+    if (v == null) return '0%';
+    return Number(v).toFixed(2) + '%';
+}
+
+function esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function scoreBadge(score) {
+    const val = Number(score || 0);
+    if (val >= 80) return '<span class="badge-soft score-good">' + val.toFixed(0) + '</span>';
+    if (val >= 50) return '<span class="badge-soft score-mid">' + val.toFixed(0) + '</span>';
+    return '<span class="badge-soft score-low">' + val.toFixed(0) + '</span>';
+}
+
+function isoDate(date) {
+    return date.toISOString().slice(0, 10);
+}
+
+function initAnalyticsFilters() {
+    const preset = document.getElementById('periodPreset');
+    if (!preset) return;
+    preset.value = 'all';
+    applyPresetRange(false);
+}
+
+function markCustomRange() {
+    const preset = document.getElementById('periodPreset');
+    if (preset) preset.value = 'custom';
+}
+
+function applyPresetRange(autoLoad = true) {
+    const preset = document.getElementById('periodPreset').value;
+    const fromInput = document.getElementById('fromDate');
+    const toInput = document.getElementById('toDate');
+    const today = new Date();
+    let from = '';
+    let to = '';
+
+    if (preset === 'custom') {
+        if (autoLoad) loadAnalyticsDashboard(true);
+        return;
+    }
+
+    if (preset === 'all') {
+        fromInput.value = '';
+        toInput.value = '';
+    } else if (preset === '7days') {
+        const start = new Date(today);
+        start.setDate(today.getDate() - 6);
+        from = isoDate(start);
+        to = isoDate(today);
+    } else if (preset === '30days') {
+        const start = new Date(today);
+        start.setDate(today.getDate() - 29);
+        from = isoDate(start);
+        to = isoDate(today);
+    } else if (preset === '90days') {
+        const start = new Date(today);
+        start.setDate(today.getDate() - 89);
+        from = isoDate(start);
+        to = isoDate(today);
+    } else if (preset === 'thisMonth') {
+        const start = new Date(today.getFullYear(), today.getMonth(), 1);
+        from = isoDate(start);
+        to = isoDate(today);
+    } else if (preset === 'thisQuarter') {
+        const quarterStartMonth = Math.floor(today.getMonth() / 3) * 3;
+        const start = new Date(today.getFullYear(), quarterStartMonth, 1);
+        from = isoDate(start);
+        to = isoDate(today);
+    } else if (preset === 'thisYear') {
+        const start = new Date(today.getFullYear(), 0, 1);
+        from = isoDate(start);
+        to = isoDate(today);
+    }
+
+    if (preset !== 'all') {
+        fromInput.value = from;
+        toInput.value = to;
+    }
+
+    if (autoLoad) loadAnalyticsDashboard(true);
+}
+
+function resetAnalyticsFilter() {
+    document.getElementById('periodPreset').value = 'all';
+    document.getElementById('fromDate').value = '';
+    document.getElementById('toDate').value = '';
+    loadAnalyticsDashboard(true);
+}
+
+function applyAnalyticsFilter() {
+    loadAnalyticsDashboard(true);
+}
+
+function buildAnalyticsQuery() {
+    const params = new URLSearchParams();
+    const from = document.getElementById('fromDate').value;
+    const to = document.getElementById('toDate').value;
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    const query = params.toString();
+    return query ? '?' + query : '';
+}
+
+function setFilterLoading(loading) {
+    const btn = document.getElementById('btnApplyFilter');
+    if (!btn) return;
+    btn.disabled = loading;
+    btn.innerHTML = loading
+        ? '<span class="spinner-border spinner-border-sm me-1"></span>Đang tải...'
+        : '<i class="fas fa-filter me-1"></i>Áp dụng bộ lọc';
+}
+
+async function loadAnalyticsDashboard(notifySuccess) {
+    setFilterLoading(true);
+    try {
+        const res = await fetch('/api/analytics/dashboard' + buildAnalyticsQuery(), {
+            headers: authHeaders(),
+            credentials: 'same-origin'
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message || 'Không thể tải dữ liệu analytics');
+
+        analyticsCache = json.data || {};
+        renderOverview(analyticsCache.overview || {});
+        renderHighlights(analyticsCache.topInsights || {});
+        renderChannelSection(analyticsCache.marketingEffectiveness?.channels || []);
+        renderStaffRevenue(analyticsCache.revenueByStaff || []);
+        renderTrendSection(analyticsCache.monthlyTrend || {});
+        renderOrderStatus(analyticsCache.orderStatusBreakdown || {});
+        renderStaffPerformance(analyticsCache.staffPerformance || []);
+        renderConversion(analyticsCache.leadConversion || {});
+
+        document.getElementById('analyticsUpdatedAt').textContent = new Date().toLocaleString('vi-VN');
+        if (notifySuccess) showToast('Đã cập nhật dữ liệu Analytics', 'success');
+    } catch (e) {
+        console.error('Analytics load error', e);
+        showToast('Không thể tải dashboard Analytics', 'danger');
+    } finally {
+        setFilterLoading(false);
+    }
+}
+
+function renderOverview(o) {
+    document.getElementById('metricRevenue').textContent = fmtMoney(o.totalRevenue);
+    document.getElementById('metricOrders').textContent = o.totalOrders ?? 0;
+    document.getElementById('metricLeads').textContent = o.totalLeads ?? 0;
+    document.getElementById('metricConversion').textContent = pct(o.leadConversionRate);
+
+    document.getElementById('metricRevenueSub').textContent = 'TB/đơn: ' + fmtMoney(o.avgRevenuePerOrder);
+    document.getElementById('metricOrdersSub').textContent = 'Hoàn thành: ' + pct(o.completionRate);
+    document.getElementById('metricLeadsSub').textContent = 'Lead tháng này: ' + (o.monthlyLeads ?? 0);
+    document.getElementById('metricConversionSub').textContent = 'Khách chốt: ' + (o.convertedLeads ?? 0);
+
+    const rangeLabel = o.rangeLabel || 'Toàn bộ dữ liệu';
+    document.getElementById('reportRangeLabel').innerHTML =
+        '<i class="fas fa-calendar-alt me-1"></i>Kỳ báo cáo: <strong>' + esc(rangeLabel) +
+        '</strong> · Doanh thu TB/đơn: <strong>' + esc(fmtMoney(o.avgRevenuePerOrder)) + '</strong>';
+}
+
+function renderHighlights(insights) {
+    document.getElementById('highlightChannel').textContent = insights.bestChannelName || '–';
+    document.getElementById('highlightChannelSub').textContent =
+        'Doanh thu: ' + fmtMoney(insights.bestChannelRevenue) + ' · CR: ' + pct(insights.bestChannelConversion);
+
+    document.getElementById('highlightStaff').textContent = insights.bestStaffName || '–';
+    document.getElementById('highlightStaffSub').textContent =
+        'Performance: ' + (Number(insights.bestStaffScore || 0).toFixed(0)) + ' điểm';
+
+    document.getElementById('highlightAvgOrder').textContent = fmtMoney(insights.avgOrderValue);
+    document.getElementById('highlightAvgOrderSub').textContent = 'Giá trị trung bình mỗi đơn hàng';
+
+    document.getElementById('highlightCompletion').textContent = pct(insights.completionRate);
+    document.getElementById('highlightCompletionSub').textContent = 'Tỷ lệ hoàn thành trong kỳ đang xem';
+}
+
+function renderChannelSection(rows) {
+    document.getElementById('tbodyChannels').innerHTML = rows.length ? rows.map(r => `
+        <tr>
+            <td class="fw-semibold">${esc(r.channelName)}</td>
+            <td class="text-end">${r.leadCount ?? 0}</td>
+            <td class="text-end">${r.orderCount ?? 0}</td>
+            <td class="text-end text-primary fw-bold">${fmtMoney(r.revenue)}</td>
+        </tr>`).join('') : '<tr><td colspan="4" class="text-center text-muted">Không có dữ liệu</td></tr>';
+
+    const ctx = document.getElementById('channelChart');
+    if (channelChart) channelChart.destroy();
+    channelChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: rows.map(r => r.channelName),
+            datasets: [{
+                label: 'Doanh thu',
+                data: rows.map(r => Number(r.revenue || 0)),
+                backgroundColor: ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#00838f', '#c62828', '#757575']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } }
+        }
+    });
+}
+
+function renderStaffRevenue(rows) {
+    document.getElementById('tbodyStaffRevenue').innerHTML = rows.length ? rows.map(r => `
+        <tr>
+            <td class="fw-semibold">${esc(r.staffName)}</td>
+            <td><span class="badge bg-secondary">${esc(r.staffRole || 'N/A')}</span></td>
+            <td class="text-end">${r.orderCount ?? 0}</td>
+            <td class="text-end text-success fw-bold">${fmtMoney(r.revenue)}</td>
+        </tr>`).join('') : '<tr><td colspan="4" class="text-center text-muted">Không có dữ liệu</td></tr>';
+
+    const ctx = document.getElementById('staffRevenueChart');
+    if (staffRevenueChart) staffRevenueChart.destroy();
+    staffRevenueChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: rows.map(r => r.staffName),
+            datasets: [{
+                data: rows.map(r => Number(r.revenue || 0)),
+                backgroundColor: ['#1976d2', '#43a047', '#fb8c00', '#8e24aa', '#00acc1', '#e53935', '#6d4c41']
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+}
+
+function renderTrendSection(trend) {
+    const labels = trend.labels || [];
+    const revenue = trend.revenue || [];
+    const leads = trend.leads || [];
+
+    const ctx = document.getElementById('trendChart');
+    if (trendChart) trendChart.destroy();
+    trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Doanh thu',
+                    data: revenue.map(v => Number(v || 0)),
+                    borderColor: '#1976d2',
+                    backgroundColor: 'rgba(25,118,210,0.12)',
+                    fill: true,
+                    tension: 0.35,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Lead',
+                    data: leads.map(v => Number(v || 0)),
+                    borderColor: '#f57c00',
+                    backgroundColor: 'rgba(245,124,0,0.12)',
+                    fill: false,
+                    tension: 0.35,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                y: { beginAtZero: true, ticks: { callback: value => Number(value).toLocaleString('vi-VN') } },
+                y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } }
+            }
+        }
+    });
+}
+
+function renderOrderStatus(statusMap) {
+    const statusLabels = {
+        PENDING: 'Chờ xử lý',
+        IN_PROGRESS: 'Đang thực hiện',
+        COMPLETED: 'Hoàn thành',
+        CANCELLED: 'Đã hủy'
+    };
+
+    const labels = Object.keys(statusMap).map(key => statusLabels[key] || key);
+    const values = Object.values(statusMap);
+
+    const ctx = document.getElementById('orderStatusChart');
+    if (orderStatusChart) orderStatusChart.destroy();
+    orderStatusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: ['#42a5f5', '#ffb300', '#66bb6a', '#ef5350', '#8d6e63']
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+}
+
+function renderStaffPerformance(rows) {
+    document.getElementById('tbodyStaffPerf').innerHTML = rows.length ? rows.map(r => `
+        <tr>
+            <td class="fw-semibold text-center">${r.rank ?? ''}</td>
+            <td>
+                <div class="fw-semibold">${esc(r.staffName)}</div>
+                <small class="text-muted">${esc(r.staffCode || '')}</small>
+            </td>
+            <td><span class="badge bg-dark">${esc(r.staffRole || '')}</span></td>
+            <td>${scoreBadge(r.performanceScore)}</td>
+            <td class="text-end">${r.totalLeads ?? 0}</td>
+            <td class="text-end">${r.totalConverted ?? 0}</td>
+            <td class="text-end">${pct(r.conversionRate)}</td>
+            <td class="text-end text-primary fw-bold">${fmtMoney(r.totalRevenue)}</td>
+            <td class="text-end text-success fw-semibold">${pct(r.targetAchievement)}</td>
+        </tr>`).join('') : '<tr><td colspan="9" class="text-center text-muted">Không có dữ liệu</td></tr>';
+}
+
+function renderConversion(conv) {
+    const statusMap = conv.leadStatusBreakdown || {};
+    const labels = Object.keys(statusMap);
+    const values = Object.values(statusMap);
+
+    const ctx = document.getElementById('conversionChart');
+    if (conversionChart) conversionChart.destroy();
+    conversionChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: ['#1976d2', '#26a69a', '#ffa726', '#ab47bc', '#66bb6a', '#ef5350']
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    document.getElementById('leadConversionSummary').innerHTML = `
+        <div class="row text-center g-2">
+            <div class="col-6"><div class="analytics-card py-2"><small class="text-muted">Lead convert</small><div class="fw-bold text-success">${conv.convertedLeads ?? 0}</div></div></div>
+            <div class="col-6"><div class="analytics-card py-2"><small class="text-muted">Lead lost</small><div class="fw-bold text-danger">${conv.lostLeads ?? 0}</div></div></div>
+            <div class="col-6"><div class="analytics-card py-2"><small class="text-muted">Lead active</small><div class="fw-bold text-info">${conv.activeLeads ?? 0}</div></div></div>
+            <div class="col-6"><div class="analytics-card py-2"><small class="text-muted">Avg contact</small><div class="fw-bold text-dark">${Number(conv.avgContactCount || 0).toFixed(1)}</div></div></div>
+            <div class="col-12"><div class="analytics-card py-2"><small class="text-muted">Tỷ lệ chuyển đổi</small><div class="fw-bold text-primary">${pct(conv.conversionRate)}</div></div></div>
+        </div>`;
+}
+
+async function triggerDownload(url, fileName) {
+    const res = await fetch(url, { headers: authHeaders(), credentials: 'same-origin' });
+    if (!res.ok) throw new Error('Download failed');
+    const blob = await res.blob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+async function downloadExcel() {
+    try {
+        await triggerDownload('/api/analytics/export/excel' + buildAnalyticsQuery(), 'analytics-report.xlsx');
+        showToast('Đã tải file Excel Analytics', 'success');
+    } catch (e) {
+        console.error(e);
+        showToast('Không thể tải file Excel', 'danger');
+    }
+}
+
+async function downloadPdf() {
+    try {
+        await triggerDownload('/api/analytics/export/pdf' + buildAnalyticsQuery(), 'analytics-report.pdf');
+        showToast('Đã tải file PDF Analytics', 'success');
+    } catch (e) {
+        console.error(e);
+        showToast('Không thể tải file PDF', 'danger');
+    }
+}
+
+function downloadCSV() {
+    if (!analyticsCache) {
+        showToast('Chưa có dữ liệu để xuất CSV', 'warning');
+        return;
+    }
+
+    const rows = [['Loai', 'Ten', 'Gia tri 1', 'Gia tri 2', 'Gia tri 3']];
+
+    (analyticsCache.marketingEffectiveness?.channels || []).forEach(c => {
+        rows.push(['CHANNEL', c.channelName, c.leadCount ?? 0, c.orderCount ?? 0, c.revenue ?? 0]);
+    });
+
+    (analyticsCache.staffPerformance || []).forEach(s => {
+        rows.push(['STAFF', s.staffName, s.performanceScore ?? 0, s.totalConverted ?? 0, s.totalRevenue ?? 0]);
+    });
+
+    (analyticsCache.monthlyTrend?.labels || []).forEach((label, index) => {
+        rows.push(['TREND', label, analyticsCache.monthlyTrend.revenue?.[index] ?? 0, analyticsCache.monthlyTrend.orders?.[index] ?? 0, analyticsCache.monthlyTrend.leads?.[index] ?? 0]);
+    });
+
+    const csv = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'analytics-report.csv';
+    link.click();
+    showToast('Đã xuất CSV nhanh cho Analytics', 'success');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Kênh Tiếp nhận - Metric System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        /* ─── Kanban Board ─────────────────────────────────────── */
+        .kanban-board {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding-bottom: 12px;
+            min-height: 500px;
+        }
+        .kanban-column {
+            min-width: 240px;
+            max-width: 240px;
+            background: #f1f4f8;
+            border-radius: 10px;
+            padding: 10px;
+        }
+        .kanban-col-header {
+            font-weight: 600;
+            font-size: 13px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .kanban-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: box-shadow .15s;
+        }
+        .kanban-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
+        .kanban-card .card-name { font-weight: 600; font-size: 13px; }
+        .kanban-card .card-meta { font-size: 11px; color: #888; margin-top: 4px; }
+        .kanban-card .card-tags  { margin-top: 6px; }
+        .kanban-card .badge-tag  { font-size: 10px; background: #e9ecef; color: #555;
+                                    border-radius: 4px; padding: 2px 6px; margin-right: 3px; }
+
+        /* ─── Channel pills ─────────────────────────────────────── */
+        .channel-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 10px; border-radius: 20px;
+            background: #e3f2fd; color: #1565c0; font-size: 12px; font-weight: 500;
+        }
+        .channel-pill.MESSENGER { background: #e8eaf6; color: #3949ab; }
+        .channel-pill.ZALO      { background: #e8f5e9; color: #2e7d32; }
+        .channel-pill.WHATSAPP  { background: #e8f5e9; color: #1b5e20; }
+        .channel-pill.EMAIL     { background: #fff3e0; color: #e65100; }
+        .channel-pill.PHONE     { background: #fce4ec; color: #880e4f; }
+        .channel-pill.WALK_IN   { background: #f3e5f5; color: #6a1b9a; }
+        .channel-pill.WEBSITE   { background: #e0f7fa; color: #006064; }
+        .channel-pill.REFERRAL  { background: #fff8e1; color: #f57f17; }
+
+        /* ─── Status badge ──────────────────────────────────────── */
+        .badge-NEW          { background: #64b5f6; }
+        .badge-CONTACTED    { background: #81c784; }
+        .badge-QUALIFIED    { background: #4db6ac; }
+        .badge-NEGOTIATING  { background: #ffb74d; color: #333 !important; }
+        .badge-CONVERTED    { background: #66bb6a; }
+        .badge-LOST         { background: #ef9a9a; color: #333 !important; }
+
+        /* ─── Stat cards ────────────────────────────────────────── */
+        .stat-mini { border-radius: 10px; padding: 14px 18px; color: #fff; flex: 1; min-width: 130px; }
+        .stat-mini .val { font-size: 26px; font-weight: 700; }
+        .stat-mini .lbl { font-size: 12px; opacity: .85; }
+
+        /* ─── Returning customer badge ──────────────────────────── */
+        .badge-returning { font-size: 10px; background: #fff3e0; color: #e65100;
+                            border: 1px solid #ffb74d; border-radius: 4px; padding: 1px 5px; }
+
+        /* ─── Timeline tương tác ────────────────────────────────── */
+        .timeline { position: relative; padding-left: 20px; }
+        .timeline::before { content: ''; position: absolute; left: 6px; top: 0; bottom: 0;
+                             width: 2px; background: #dee2e6; }
+        .timeline-item { position: relative; margin-bottom: 14px; }
+        .timeline-dot  { position: absolute; left: -17px; top: 4px; width: 12px; height: 12px;
+                          border-radius: 50%; background: #007bff; border: 2px solid #fff;
+                          box-shadow: 0 0 0 2px #007bff; }
+        .timeline-dot.NOTE     { background: #6c757d; box-shadow: 0 0 0 2px #6c757d; }
+        .timeline-dot.CALL     { background: #28a745; box-shadow: 0 0 0 2px #28a745; }
+        .timeline-dot.MESSAGE  { background: #007bff; box-shadow: 0 0 0 2px #007bff; }
+        .timeline-dot.MEETING  { background: #fd7e14; box-shadow: 0 0 0 2px #fd7e14; }
+        .timeline-dot.EMAIL    { background: #dc3545; box-shadow: 0 0 0 2px #dc3545; }
+        .timeline-content { background: #f8f9fa; border-radius: 8px; padding: 8px 12px; font-size: 13px; }
+        .timeline-meta    { font-size: 11px; color: #888; margin-top: 3px; }
+
+        /* ─── FAQ ───────────────────────────────────────────────── */
+        .faq-card { border-left: 4px solid #007bff; border-radius: 6px; padding: 12px; background: #f8f9fa; }
+        .faq-card .faq-q { font-weight: 600; font-size: 14px; }
+        .faq-card .faq-a { font-size: 13px; color: #555; margin-top: 4px; }
+
+        .page-shell { padding: 4px 2px 24px; }
+        .leads-hero {
+            padding: 20px 22px;
+            border-radius: 20px;
+            background:
+                radial-gradient(circle at top right, rgba(255,255,255,0.18), transparent 0, transparent 34%),
+                linear-gradient(135deg, #4f46e5, #2563eb);
+            color: #fff;
+            box-shadow: 0 18px 40px rgba(79, 70, 229, 0.22);
+        }
+        .leads-hero .text-muted { color: rgba(255,255,255,0.82) !important; }
+        .leads-toolbar {
+            background: rgba(255,255,255,0.9);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            border-radius: 16px;
+            padding: 14px;
+            box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+        }
+        .stat-mini {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.18);
+            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.10);
+            min-height: 104px;
+        }
+        .stat-mini::after {
+            content: '';
+            position: absolute;
+            width: 84px;
+            height: 84px;
+            top: -26px;
+            right: -20px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.18), transparent 70%);
+        }
+        .kanban-column {
+            background: rgba(255,255,255,0.9);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+            border-radius: 16px;
+        }
+        .kanban-card {
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            box-shadow: 0 8px 16px rgba(15, 23, 42, 0.05);
+        }
+        .kanban-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 24px rgba(15, 23, 42, 0.10);
+        }
+        #tab-list .table,
+        #followupList .card,
+        #channelCards .card,
+        #tab-faq .faq-card {
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+        }
+        body[data-theme='dark'] .leads-toolbar,
+        body[data-theme='dark'] .kanban-column,
+        body[data-theme='dark'] .faq-card,
+        body[data-theme='dark'] .timeline-content {
+            background: rgba(15, 23, 42, 0.88);
+            border-color: rgba(148, 163, 184, 0.16);
+            color: #e2e8f0;
+        }
+        body[data-theme='dark'] .kanban-card {
+            background: rgba(15, 23, 42, 0.92);
+            border-color: rgba(148, 163, 184, 0.16);
+            color: #e2e8f0;
+        }
+        body[data-theme='dark'] .faq-card .faq-a,
+        body[data-theme='dark'] .kanban-card .card-meta,
+        body[data-theme='dark'] .timeline-meta {
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+<div class="container-fluid page-shell" id="mainContent">
+
+    <!-- ─── Header ──────────────────────────────────────────────────────── -->
+    <div class="leads-hero mb-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-2">
+            <div>
+                <h4 class="mb-0"><i class="fas fa-satellite-dish me-2"></i>Quản lý Kênh Tiếp nhận</h4>
+                <small class="text-muted">Omnichannel workspace — gom toàn bộ lead, follow-up và FAQ trên một giao diện trực quan</small>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="badge rounded-pill bg-light text-primary px-3 py-2 fw-semibold">Realtime pipeline</span>
+                <button class="btn btn-light leads-action-btn" onclick="openCreateLeadModal()">
+                    <i class="fas fa-plus me-1"></i>Tạo Lead mới
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── Alert ───────────────────────────────────────────────────────── -->
+    <div id="alertBox" class="alert alert-dismissible fade d-none" role="alert">
+        <span id="alertMsg"></span>
+        <button type="button" class="btn-close" onclick="hideAlert()"></button>
+    </div>
+
+    <!-- ─── Tabs ────────────────────────────────────────────────────────── -->
+    <ul class="nav nav-tabs mb-3" id="mainTabs">
+        <li class="nav-item">
+            <a class="nav-link active" href="#" onclick="switchTab('kanban', event)">
+                <i class="fas fa-columns me-1"></i>Kanban Pipeline
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="switchTab('list', event)">
+                <i class="fas fa-list me-1"></i>Danh sách
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="switchTab('followup', event)">
+                <i class="fas fa-bell me-1"></i>Follow-up hôm nay
+                <span class="badge bg-danger ms-1" id="followupCount">0</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="switchTab('channels', event)">
+                <i class="fas fa-plug me-1"></i>Kênh
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="switchTab('faq', event)">
+                <i class="fas fa-comment-dots me-1"></i>FAQ / Chatbot
+            </a>
+        </li>
+    </ul>
+
+    <!-- ─── Stat Cards ──────────────────────────────────────────────────── -->
+    <div class="d-flex flex-wrap gap-3 mb-3" id="statCards">
+        <div class="stat-mini" style="background:#5c6bc0">
+            <div class="val" id="s-total">0</div>
+            <div class="lbl">Tổng leads</div>
+        </div>
+        <div class="stat-mini" style="background:#42a5f5">
+            <div class="val" id="s-new">0</div>
+            <div class="lbl">Mới tiếp nhận</div>
+        </div>
+        <div class="stat-mini" style="background:#26a69a">
+            <div class="val" id="s-qualified">0</div>
+            <div class="lbl">Đã xác định nhu cầu</div>
+        </div>
+        <div class="stat-mini" style="background:#66bb6a">
+            <div class="val" id="s-converted">0</div>
+            <div class="lbl">Đã chốt đơn</div>
+        </div>
+        <div class="stat-mini" style="background:#ef5350">
+            <div class="val" id="s-lost">0</div>
+            <div class="lbl">Bỏ lỡ</div>
+        </div>
+        <div class="stat-mini" style="background:#ffa726; color:#333">
+            <div class="val" id="s-rate">0%</div>
+            <div class="lbl">Tỷ lệ chuyển đổi</div>
+        </div>
+    </div>
+
+    <!-- ─── TAB: Kanban ─────────────────────────────────────────────────── -->
+    <div id="tab-kanban">
+        <!-- Filter bar -->
+        <div class="leads-toolbar mb-3">
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+                <select class="form-select form-select-sm" style="max-width:180px" id="filterChannel"
+                        onchange="applyFilters()">
+                    <option value="">Tất cả kênh</option>
+                </select>
+                <input type="text" class="form-control form-control-sm" style="max-width:240px"
+                       id="searchQ" placeholder="Tên / SĐT / Email..." oninput="debounceSearch()">
+                <span class="text-muted small"><i class="fas fa-lightbulb me-1 text-warning"></i>Lọc nhanh pipeline theo kênh và từ khóa</span>
+            </div>
+        </div>
+        <div class="kanban-board" id="kanbanBoard">
+            <!-- Columns rendered by JS -->
+        </div>
+    </div>
+
+    <!-- ─── TAB: List ────────────────────────────────────────────────────── -->
+    <div id="tab-list" class="d-none">
+        <table class="table table-sm table-hover bg-white rounded shadow-sm">
+            <thead class="table-dark">
+                <tr>
+                    <th>Mã</th>
+                    <th>Họ tên</th>
+                    <th>Kênh</th>
+                    <th>SĐT / Email</th>
+                    <th>Nhu cầu</th>
+                    <th>Trạng thái</th>
+                    <th>Nhân viên</th>
+                    <th>Follow-up</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="leadTableBody"></tbody>
+        </table>
+        <nav><ul class="pagination pagination-sm" id="listPagination"></ul></nav>
+    </div>
+
+    <!-- ─── TAB: Follow-up hôm nay ──────────────────────────────────────── -->
+    <div id="tab-followup" class="d-none">
+        <p class="text-muted mb-3">Danh sách leads cần liên hệ hôm nay</p>
+        <div id="followupList"></div>
+    </div>
+
+    <!-- ─── TAB: Channels ────────────────────────────────────────────────── -->
+    <div id="tab-channels" class="d-none">
+        <div class="row" id="channelCards"></div>
+    </div>
+
+    <!-- ─── TAB: FAQ ─────────────────────────────────────────────────────── -->
+    <div id="tab-faq" class="d-none">
+        <div class="d-flex justify-content-between mb-3">
+            <div class="d-flex gap-2">
+                <input type="text" class="form-control form-control-sm" style="max-width:250px"
+                       id="faqSearch" placeholder="Tìm câu hỏi..." oninput="searchFaq(this.value)">
+                <select class="form-select form-select-sm" style="max-width:160px" id="faqCategory"
+                        onchange="loadFaqs()">
+                    <option value="">Tất cả</option>
+                    <option value="GIA_CA">Giá cả</option>
+                    <option value="QUY_TRINH">Quy trình</option>
+                    <option value="SAN_PHAM">Sản phẩm</option>
+                    <option value="GIAO_HANG">Giao hàng</option>
+                    <option value="KHAC">Khác</option>
+                </select>
+            </div>
+            <button class="btn btn-sm btn-success" onclick="openFaqModal(null)">
+                <i class="fas fa-plus me-1"></i>Thêm FAQ
+            </button>
+        </div>
+        <div id="faqList" class="row g-3"></div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════ MODALS ════════════════════════════════════ -->
+
+<!-- ─── Modal: Tạo / Chỉnh sửa Lead ──────────────────────────────────── -->
+<div class="modal fade" id="leadModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="leadModalTitle"><i class="fas fa-user-plus me-2"></i>Tạo Lead mới</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="leadId">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Họ & Tên <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="leadFullName" placeholder="Nguyễn Văn A" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Kênh tiếp nhận <span class="text-danger">*</span></label>
+                        <select class="form-select" id="leadChannel" required></select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Số điện thoại</label>
+                        <input type="text" class="form-control" id="leadPhone" placeholder="090xxxxxxx">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Email</label>
+                        <input type="email" class="form-control" id="leadEmail" placeholder="khach@email.com">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Nhu cầu</label>
+                        <select class="form-select" id="leadNeedType">
+                            <option value="">-- Chọn --</option>
+                            <option value="SUIT">Vest / Bộ suit</option>
+                            <option value="SHIRT">Áo sơ mi / Áo vest</option>
+                            <option value="PANTS">Quần âu</option>
+                            <option value="DRESS">Đầm / Váy</option>
+                            <option value="WEDDING">Trang phục cưới</option>
+                            <option value="OTHER">Khác</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Ngân sách ước tính (VNĐ)</label>
+                        <input type="number" class="form-control" id="leadBudget" placeholder="0">
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label fw-semibold">Nội dung tin nhắn / hội thoại</label>
+                        <textarea class="form-control" id="leadSourceMsg" rows="3"
+                                  placeholder="Dán nội dung tin nhắn từ Zalo/Messenger…"
+                                  oninput="autoExtractContactInfo()"></textarea>
+                        <small class="text-muted">
+                            Hệ thống sẽ tự động nhận diện SĐT và Email từ tin nhắn nếu chưa điền ở trên.
+                        </small>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label fw-semibold">Mô tả nhu cầu chi tiết</label>
+                        <textarea class="form-control" id="leadNeedDesc" rows="2"
+                                  placeholder="Cần may vest 2 mảnh, chất liệu len, màu xanh navy…"></textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Hẹn follow-up lúc</label>
+                        <input type="datetime-local" class="form-control" id="leadFollowup">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Tags</label>
+                        <input type="text" class="form-control" id="leadTags" placeholder="VIP, WEDDING, …">
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label fw-semibold">Ghi chú nội bộ</label>
+                        <textarea class="form-control" id="leadNotes" rows="2"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="saveLead()">
+                    <i class="fas fa-save me-1"></i>Lưu
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Modal: Chi tiết Lead + Tương tác ─────────────────────────────── -->
+<div class="modal fade" id="leadDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detailLeadCode"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <!-- Thông tin -->
+                    <div class="col-md-5 border-end">
+                        <div id="leadDetailInfo"></div>
+                        <hr>
+                        <!-- Nhanh chuyển trạng thái -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Chuyển trạng thái</label>
+                            <div class="d-flex gap-2 flex-wrap" id="statusBtns"></div>
+                        </div>
+                        <div id="lostReasonBox" class="d-none">
+                            <label class="form-label">Lý do bỏ lỡ</label>
+                            <textarea class="form-control form-control-sm" id="lostReasonInput" rows="2"></textarea>
+                        </div>
+                        <hr>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editLead()">
+                                <i class="fas fa-edit me-1"></i>Sửa
+                            </button>
+                            <button class="btn btn-sm btn-success" onclick="showConvertForm()" id="convertBtn">
+                                <i class="fas fa-check-circle me-1"></i>Chốt đơn
+                            </button>
+                        </div>
+                        <div id="convertForm" class="d-none mt-3 p-3 bg-light rounded">
+                            <p class="fw-semibold mb-2">Chốt đơn thành công</p>
+                            <div class="mb-2">
+                                <label class="form-label form-label-sm">ID Khách hàng (vừa tạo)</label>
+                                <input type="number" class="form-control form-control-sm" id="convertCustomerId">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label form-label-sm">ID Đơn hàng (vừa tạo)</label>
+                                <input type="number" class="form-control form-control-sm" id="convertOrderId">
+                            </div>
+                            <button class="btn btn-sm btn-success" onclick="confirmConvert()">Xác nhận</button>
+                        </div>
+                    </div>
+                    <!-- Timeline tương tác -->
+                    <div class="col-md-7">
+                        <h6 class="fw-semibold mb-3"><i class="fas fa-history me-1 text-primary"></i>Lịch sử tương tác</h6>
+                        <div class="timeline" id="interactionTimeline"></div>
+                        <hr>
+                        <h6 class="fw-semibold mb-2">Thêm tương tác mới</h6>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <select class="form-select form-select-sm" id="intType">
+                                    <option value="CALL">📞 Gọi điện</option>
+                                    <option value="MESSAGE">💬 Nhắn tin</option>
+                                    <option value="MEETING">🤝 Gặp mặt</option>
+                                    <option value="EMAIL">✉️ Email</option>
+                                    <option value="NOTE" selected>📝 Ghi chú</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" class="form-control form-control-sm" id="intOutcome"
+                                       placeholder="Kết quả (tùy chọn)">
+                            </div>
+                            <div class="col-md-12">
+                                <textarea class="form-control form-control-sm" id="intContent" rows="2"
+                                          placeholder="Nội dung tương tác…"></textarea>
+                            </div>
+                            <div class="col-md-12">
+                                <button class="btn btn-sm btn-primary" onclick="addInteraction()">
+                                    <i class="fas fa-plus me-1"></i>Lưu tương tác
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Modal: FAQ ────────────────────────────────────────────────────── -->
+<div class="modal fade" id="faqModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="faqModalTitle">Thêm FAQ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="faqId">
+                <div class="mb-3">
+                    <label class="form-label">Câu hỏi <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="faqQuestion">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Câu trả lời <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="faqAnswer" rows="4"></textarea>
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Danh mục</label>
+                        <select class="form-select form-select-sm" id="faqCatInput">
+                            <option value="GIA_CA">Giá cả</option>
+                            <option value="QUY_TRINH">Quy trình</option>
+                            <option value="SAN_PHAM">Sản phẩm</option>
+                            <option value="GIAO_HANG">Giao hàng</option>
+                            <option value="KHAC">Khác</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Từ khóa (cách nhau bởi dấu phẩy)</label>
+                        <input type="text" class="form-control form-control-sm" id="faqKeywords">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="saveFaq()">Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ────────────────────────── SCRIPTS ──────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script th:src="@{/js/form-validator.js}"></script>
+<script>
+var BASE = '/api';
+var channels    = [];
+var currentLeadId = null;
+var currentTab  = 'kanban';
+var searchTimer = null;
+
+var STATUSES = [
+    { key: 'NEW',         label: 'Mới tiếp nhận',          color: 'primary' },
+    { key: 'CONTACTED',   label: 'Đã liên hệ',             color: 'info'    },
+    { key: 'QUALIFIED',   label: 'Đã xác định nhu cầu',    color: 'teal'    },
+    { key: 'NEGOTIATING', label: 'Đang tư vấn / báo giá',  color: 'warning' },
+    { key: 'CONVERTED',   label: 'Đã chốt đơn',            color: 'success' },
+    { key: 'LOST',        label: 'Bỏ lỡ',                  color: 'danger'  },
+];
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+$(document).ready(function () {
+    loadChannels().then(() => {
+        loadStats();
+        renderKanban();
+        loadFollowUp();
+    });
+});
+
+// ─── Tab switching ─────────────────────────────────────────────────────────
+function switchTab(tab, e) {
+    if (e) e.preventDefault();
+    currentTab = tab;
+    document.querySelectorAll('#mainTabs .nav-link').forEach(el => el.classList.remove('active'));
+    const activeLink = e?.currentTarget || e?.target?.closest('.nav-link');
+    if (activeLink) activeLink.classList.add('active');
+    ['kanban','list','followup','channels','faq'].forEach(t => {
+        document.getElementById('tab-' + t).classList.toggle('d-none', t !== tab);
+    });
+    if (tab === 'list')     loadLeadList(0);
+    if (tab === 'channels') renderChannelTab();
+    if (tab === 'faq')      loadFaqs();
+}
+
+// ─── Stats ─────────────────────────────────────────────────────────────────
+function loadStats() {
+    $.get(BASE + '/leads/stats', function (res) {
+        if (!res.success) return;
+        const d = res.data;
+        $('#s-total').text(d.total);
+        $('#s-new').text(d.newLeads);
+        $('#s-qualified').text(d.qualified);
+        $('#s-converted').text(d.converted);
+        $('#s-lost').text(d.lost);
+        $('#s-rate').text(d.conversionRate + '%');
+    });
+}
+
+// ─── Channels ──────────────────────────────────────────────────────────────
+function loadChannels() {
+    return $.get(BASE + '/channels').then(function (res) {
+        if (!res.success) return;
+        channels = res.data;
+        // Populate filter dropdown
+        const sel = $('#filterChannel');
+        channels.forEach(c => sel.append(`<option value="${c.id}">${c.displayName}</option>`));
+        // Populate lead modal dropdown
+        const lsel = $('#leadChannel');
+        channels.forEach(c => lsel.append(`<option value="${c.id}">${c.displayName}</option>`));
+    });
+}
+
+// ─── Kanban ─────────────────────────────────────────────────────────────────
+function renderKanban() {
+    const board = document.getElementById('kanbanBoard');
+    board.innerHTML = '';
+    STATUSES.forEach(s => {
+        board.innerHTML += `
+        <div class="kanban-column" id="col-${s.key}">
+            <div class="kanban-col-header bg-${s.color === 'teal' ? 'info' : s.color} text-white">
+                <span>${s.label}</span>
+                <span class="badge bg-white text-dark" id="cnt-${s.key}">0</span>
+            </div>
+            <div id="cards-${s.key}"></div>
+        </div>`;
+    });
+    STATUSES.forEach(s => fetchLeadsByStatus(s.key));
+}
+
+function fetchLeadsByStatus(status) {
+    const cid = $('#filterChannel').val();
+    let url = `${BASE}/leads?status=${status}&size=50`;
+    if (cid) url += `&channelId=${cid}`;
+    $.get(url, function (res) {
+        if (!res.success) return;
+        const leads = res.data.content || [];
+        document.getElementById(`cnt-${status}`).textContent = leads.length;
+        const container = document.getElementById(`cards-${status}`);
+        container.innerHTML = '';
+        leads.forEach(l => {
+            container.innerHTML += buildKanbanCard(l);
+        });
+    });
+}
+
+function buildKanbanCard(l) {
+    const channelPill = `<span class="channel-pill ${l.channelCode}">
+        <i class="${l.channelIconClass || 'fas fa-circle'}"></i>${l.channelDisplayName || l.channelCode}
+    </span>`;
+    const returning = l.isReturningCustomer ? '<span class="badge-returning ms-1">Khách cũ</span>' : '';
+    const phone = l.phone ? `<i class="fas fa-phone me-1"></i>${l.phone}` : '';
+    const followup = l.followupAt
+        ? `<br><i class="fas fa-clock me-1 text-warning"></i>${formatDate(l.followupAt)}` : '';
+    return `
+    <div class="kanban-card" onclick="openLeadDetail(${l.id})">
+        <div class="card-name">${escHtml(l.fullName)}${returning}</div>
+        <div class="card-meta">${channelPill}</div>
+        <div class="card-meta">${phone}${followup}</div>
+        ${l.needType ? `<div class="card-meta mt-1"><i class="fas fa-tag me-1"></i>${l.needType}</div>` : ''}
+        ${buildTagBadges(l.tags)}
+    </div>`;
+}
+
+function buildTagBadges(tags) {
+    if (!tags) return '';
+    return '<div class="card-tags">' +
+        tags.split(',').map(t => `<span class="badge-tag">${escHtml(t.trim())}</span>`).join('') +
+        '</div>';
+}
+
+function applyFilters() { renderKanban(); }
+function debounceSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        if (currentTab === 'list') loadLeadList(0);
+        else renderKanbanFiltered();
+    }, 400);
+}
+function renderKanbanFiltered() {
+    const q = $('#searchQ').val().trim();
+    if (!q) { renderKanban(); return; }
+    STATUSES.forEach(s => {
+        $.get(`${BASE}/leads?q=${encodeURIComponent(q)}&status=${s.key}&size=50`, function (res) {
+            if (!res.success) return;
+            const leads = res.data.content || [];
+            document.getElementById(`cnt-${s.key}`).textContent = leads.length;
+            const container = document.getElementById(`cards-${s.key}`);
+            container.innerHTML = '';
+            leads.forEach(l => container.innerHTML += buildKanbanCard(l));
+        });
+    });
+}
+
+// ─── Lead List ───────────────────────────────────────────────────────────────
+function loadLeadList(page) {
+    const q   = $('#searchQ').val().trim();
+    const cid = $('#filterChannel').val();
+    let url = `${BASE}/leads?page=${page}&size=20`;
+    if (q)   url += `&q=${encodeURIComponent(q)}`;
+    if (cid) url += `&channelId=${cid}`;
+    $.get(url, function (res) {
+        if (!res.success) return;
+        const data = res.data;
+        const tbody = document.getElementById('leadTableBody');
+        tbody.innerHTML = '';
+        (data.content || []).forEach(l => {
+            tbody.innerHTML += `
+            <tr style="cursor:pointer" onclick="openLeadDetail(${l.id})">
+                <td><code>${l.leadCode}</code></td>
+                <td>${escHtml(l.fullName)}
+                    ${l.isReturningCustomer ? '<span class="badge-returning ms-1">Khách cũ</span>' : ''}
+                </td>
+                <td><span class="channel-pill ${l.channelCode}">
+                    <i class="${l.channelIconClass || 'fas fa-circle'}"></i>${l.channelDisplayName}
+                </span></td>
+                <td>${l.phone || ''}<br><small class="text-muted">${l.email || ''}</small></td>
+                <td>${l.needType || ''}</td>
+                <td><span class="badge badge-${l.status}">${l.statusLabel}</span></td>
+                <td>${l.assignedStaffId ? '<i class="fas fa-user text-muted"></i> ' + l.assignedStaffId : ''}</td>
+                <td>${l.followupAt ? formatDate(l.followupAt) : ''}</td>
+                <td>
+                    <button class="btn btn-xs btn-outline-primary" onclick="event.stopPropagation();openLeadDetail(${l.id})">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </td>
+            </tr>`;
+        });
+        renderPagination(data.totalPages, page, 'loadLeadList');
+    });
+}
+
+function renderPagination(totalPages, current, fn) {
+    const pag = document.getElementById('listPagination');
+    pag.innerHTML = '';
+    for (let i = 0; i < totalPages; i++) {
+        pag.innerHTML += `<li class="page-item ${i === current ? 'active' : ''}">
+            <a class="page-link" href="#" onclick="${fn}(${i});return false">${i + 1}</a></li>`;
+    }
+}
+
+// ─── Follow-up today ─────────────────────────────────────────────────────────
+function loadFollowUp() {
+    $.get(BASE + '/leads/followup-today', function (res) {
+        if (!res.success) return;
+        const leads = res.data;
+        $('#followupCount').text(leads.length);
+        const container = document.getElementById('followupList');
+        if (!leads.length) {
+            container.innerHTML = '<p class="text-muted">Không có follow-up nào hôm nay 🎉</p>';
+            return;
+        }
+        container.innerHTML = '';
+        leads.forEach(l => {
+            container.innerHTML += `
+            <div class="card mb-2">
+                <div class="card-body d-flex justify-content-between align-items-start py-2">
+                    <div>
+                        <strong>${escHtml(l.fullName)}</strong>
+                        <span class="channel-pill ${l.channelCode} ms-2">
+                            <i class="${l.channelIconClass || 'fas fa-circle'}"></i>${l.channelDisplayName}
+                        </span>
+                        <br>
+                        <small class="text-muted">${l.phone || ''} | ${l.needType || ''}</small><br>
+                        <small class="text-warning"><i class="fas fa-clock me-1"></i>${formatDate(l.followupAt)}</small>
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-success" onclick="openLeadDetail(${l.id})">Mở</button>
+                    </div>
+                </div>
+            </div>`;
+        });
+    });
+}
+
+// ─── Channel Tab ───────────────────────────────────────────────────────────
+function renderChannelTab() {
+    $.get(BASE + '/channels/all', function (res) {
+        if (!res.success) return;
+        const container = document.getElementById('channelCards');
+        container.innerHTML = '';
+        res.data.forEach(c => {
+            container.innerHTML += `
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="card ${c.isActive ? '' : 'opacity-50'}">
+                    <div class="card-body text-center">
+                        <div style="font-size:36px;margin-bottom:8px">
+                            <i class="${c.iconClass || 'fas fa-circle'}" style="color:#007bff"></i>
+                        </div>
+                        <h6>${escHtml(c.displayName)}</h6>
+                        <p class="text-muted small">${c.description || ''}</p>
+                        <span class="badge ${c.isActive ? 'bg-success' : 'bg-secondary'}">
+                            ${c.isActive ? 'Hoạt động' : 'Tắt'}
+                        </span>
+                        <br><br>
+                        <button class="btn btn-sm btn-outline-${c.isActive ? 'danger' : 'success'}"
+                                onclick="toggleChannel(${c.id}, ${!c.isActive})">
+                            ${c.isActive ? 'Tắt kênh' : 'Bật kênh'}
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        });
+    });
+}
+
+function toggleChannel(id, active) {
+    $.ajax({
+        url: `${BASE}/channels/${id}/toggle?active=${active}`,
+        type: 'PATCH',
+        success: function (res) {
+            if (res.success) { renderChannelTab(); showAlert('Cập nhật kênh thành công', 'success'); }
+        }
+    });
+}
+
+// ─── Lead Detail Modal ───────────────────────────────────────────────────────
+function openLeadDetail(id) {
+    currentLeadId = id;
+    $.get(`${BASE}/leads/${id}`, function (res) {
+        if (!res.success) return;
+        const l = res.data;
+        document.getElementById('detailLeadCode').innerHTML =
+            `<code>${l.leadCode}</code> — ${escHtml(l.fullName)}`;
+        document.getElementById('leadDetailInfo').innerHTML = buildDetailInfo(l);
+        renderStatusButtons(l.status);
+        document.getElementById('convertBtn').classList.toggle('d-none', l.status === 'CONVERTED');
+        document.getElementById('convertForm').classList.add('d-none');
+        loadInteractions(id);
+        new bootstrap.Modal(document.getElementById('leadDetailModal')).show();
+    });
+}
+
+function buildDetailInfo(l) {
+    const rows = [
+        ['Kênh',        `<span class="channel-pill ${l.channelCode}"><i class="${l.channelIconClass || 'fas fa-circle'}"></i>${l.channelDisplayName}</span>`],
+        ['SĐT',         l.phone || '—'],
+        ['Email',       l.email || '—'],
+        ['Nhu cầu',     l.needType || '—'],
+        ['Ngân sách',   l.estimatedBudget ? formatMoney(l.estimatedBudget) + ' ₫' : '—'],
+        ['Trạng thái',  `<span class="badge badge-${l.status}">${l.statusLabel}</span>`],
+        ['Khách cũ',    l.isReturningCustomer ? '<span class="badge-returning">Có</span>' : 'Không'],
+        ['Follow-up',   l.followupAt ? formatDate(l.followupAt) : '—'],
+        ['Lần liên hệ', l.contactCount],
+        ['Ghi chú',     l.notes ? `<span class="text-muted">${escHtml(l.notes)}</span>` : '—'],
+    ];
+    return '<table class="table table-sm table-borderless">' +
+        rows.map(r => `<tr><td class="fw-semibold text-muted" style="width:110px">${r[0]}</td><td>${r[1]}</td></tr>`).join('') +
+        '</table>';
+}
+
+function renderStatusButtons(current) {
+    const next = { NEW: ['CONTACTED','LOST'], CONTACTED: ['QUALIFIED','LOST'],
+                   QUALIFIED: ['NEGOTIATING','LOST'], NEGOTIATING: ['CONVERTED','LOST'] };
+    const box = document.getElementById('statusBtns');
+    box.innerHTML = '';
+    const allowed = next[current] || [];
+    allowed.forEach(s => {
+        const st = STATUSES.find(x => x.key === s);
+        box.innerHTML += `<button class="btn btn-sm btn-outline-${st.color === 'teal' ? 'info' : st.color}"
+            onclick="changeStatus('${s}')">${st.label}</button>`;
+    });
+    if (!allowed.length) box.innerHTML = '<span class="text-muted small">Không thể thay đổi</span>';
+}
+
+function changeStatus(newStatus) {
+    if (newStatus === 'LOST') {
+        document.getElementById('lostReasonBox').classList.remove('d-none');
+        return;
+    }
+    doChangeStatus(newStatus, null);
+}
+
+function doChangeStatus(status, lostReason) {
+    $.ajax({
+        url: `${BASE}/leads/${currentLeadId}/status`,
+        type: 'PATCH',
+        contentType: 'application/json',
+        data: JSON.stringify({ status, lostReason }),
+        success: function (res) {
+            if (res.success) {
+                showAlert('Cập nhật trạng thái thành công', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('leadDetailModal')).hide();
+                loadStats();
+                renderKanban();
+            }
+        }
+    });
+}
+
+// ─── Interactions ─────────────────────────────────────────────────────────
+function loadInteractions(id) {
+    $.get(`${BASE}/leads/${id}/interactions`, function (res) {
+        if (!res.success) return;
+        const timeline = document.getElementById('interactionTimeline');
+        timeline.innerHTML = '';
+        if (!res.data.length) {
+            timeline.innerHTML = '<p class="text-muted small">Chưa có tương tác nào</p>';
+            return;
+        }
+        res.data.forEach(i => {
+            timeline.innerHTML += `
+            <div class="timeline-item">
+                <div class="timeline-dot ${i.interactionType}"></div>
+                <div class="timeline-content">
+                    <strong>${i.interactionTypeLabel}</strong>
+                    ${i.outcome ? `<span class="badge bg-secondary ms-1">${escHtml(i.outcome)}</span>` : ''}
+                    <div>${escHtml(i.content)}</div>
+                    <div class="timeline-meta">${formatDateTime(i.interactedAt)}</div>
+                </div>
+            </div>`;
+        });
+    });
+}
+
+function addInteraction() {
+    const payload = {
+        interactionType: $('#intType').val(),
+        content: $('#intContent').val().trim(),
+        outcome: $('#intOutcome').val().trim(),
+        interactedAt: new Date().toISOString()
+    };
+    if (!payload.content) { showAlert('Vui lòng nhập nội dung tương tác', 'warning'); return; }
+    $.ajax({
+        url: `${BASE}/leads/${currentLeadId}/interactions`,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        success: function (res) {
+            if (res.success) {
+                $('#intContent').val(''); $('#intOutcome').val('');
+                loadInteractions(currentLeadId);
+                showAlert('Đã lưu tương tác', 'success');
+            }
+        }
+    });
+}
+
+// ─── Create / Edit Lead ───────────────────────────────────────────────────
+function openCreateLeadModal() {
+    $('#leadModalTitle').html('<i class="fas fa-user-plus me-2"></i>Tạo Lead mới');
+    $('#leadId').val('');
+    ['leadFullName','leadPhone','leadEmail','leadSourceMsg','leadNeedDesc','leadTags','leadNotes'].forEach(id => $('#'+id).val(''));
+    $('#leadBudget').val('');
+    $('#leadNeedType').val('');
+    $('#leadFollowup').val('');
+    new bootstrap.Modal(document.getElementById('leadModal')).show();
+}
+
+function autoExtractContactInfo() {
+    const msg = $('#leadSourceMsg').val();
+    const phoneMatch = msg.match(/(\\+?84|0)[0-9]{8,10}/);
+    const emailMatch = msg.match(/[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}/);
+    if (phoneMatch && !$('#leadPhone').val()) $('#leadPhone').val(phoneMatch[0]);
+    if (emailMatch && !$('#leadEmail').val()) $('#leadEmail').val(emailMatch[0]);
+}
+
+function saveLead() {
+    const id = $('#leadId').val();
+    const payload = {
+        channelId:       parseInt($('#leadChannel').val()),
+        fullName:        $('#leadFullName').val().trim(),
+        phone:           $('#leadPhone').val().trim(),
+        email:           $('#leadEmail').val().trim(),
+        sourceMessage:   $('#leadSourceMsg').val().trim(),
+        needType:        $('#leadNeedType').val(),
+        needDescription: $('#leadNeedDesc').val().trim(),
+        estimatedBudget: parseFloat($('#leadBudget').val()) || null,
+        followupAt:      $('#leadFollowup').val() || null,
+        tags:            $('#leadTags').val().trim(),
+        notes:           $('#leadNotes').val().trim(),
+    };
+    const ok = FormValidator.validate('leadModal', [
+        { id: 'leadFullName', label: 'Họ tên',   required: true },
+        { id: 'leadChannel',  label: 'Kênnh nguồn', required: true },
+        { id: 'leadEmail',    label: 'Email',      required: false, type: 'email' }
+    ]);
+    if (!ok) return;
+
+    const url  = id ? `${BASE}/leads/${id}` : `${BASE}/leads`;
+    const type = id ? 'PUT' : 'POST';
+    $.ajax({
+        url, type,
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        success: function (res) {
+            if (res.success) {
+                bootstrap.Modal.getInstance(document.getElementById('leadModal')).hide();
+                showAlert(id ? 'Cập nhật lead thành công' : 'Tạo lead thành công', 'success');
+                loadStats();
+                renderKanban();
+                if (currentTab === 'list') loadLeadList(0);
+            }
+        },
+        error: function (err) {
+            const msg = err.responseJSON?.message || 'Có lỗi xảy ra';
+            showAlert(msg, 'danger');
+        }
+    });
+}
+
+function editLead() {
+    $.get(`${BASE}/leads/${currentLeadId}`, function (res) {
+        if (!res.success) return;
+        const l = res.data;
+        bootstrap.Modal.getInstance(document.getElementById('leadDetailModal')).hide();
+        $('#leadModalTitle').html('<i class="fas fa-edit me-2"></i>Chỉnh sửa Lead');
+        $('#leadId').val(l.id);
+        $('#leadFullName').val(l.fullName);
+        $('#leadPhone').val(l.phone);
+        $('#leadEmail').val(l.email);
+        $('#leadSourceMsg').val(l.sourceMessage);
+        $('#leadNeedType').val(l.needType);
+        $('#leadNeedDesc').val(l.needDescription);
+        $('#leadBudget').val(l.estimatedBudget);
+        $('#leadTags').val(l.tags);
+        $('#leadNotes').val(l.notes);
+        new bootstrap.Modal(document.getElementById('leadModal')).show();
+    });
+}
+
+// ─── Convert Lead ──────────────────────────────────────────────────────────
+function showConvertForm() {
+    document.getElementById('convertForm').classList.toggle('d-none');
+}
+function confirmConvert() {
+    const customerId = parseInt($('#convertCustomerId').val());
+    const orderId    = parseInt($('#convertOrderId').val());
+    $.ajax({
+        url: `${BASE}/leads/${currentLeadId}/convert`,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ customerId, orderId }),
+        success: function (res) {
+            if (res.success) {
+                showAlert('Đã chốt đơn thành công!', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('leadDetailModal')).hide();
+                loadStats();
+                renderKanban();
+            }
+        }
+    });
+}
+
+// ─── FAQs ──────────────────────────────────────────────────────────────────
+function loadFaqs() {
+    const cat = $('#faqCategory').val();
+    const url = cat ? `${BASE}/faqs?category=${cat}` : `${BASE}/faqs`;
+    $.get(url, function (res) {
+        if (!res.success) return;
+        renderFaqList(res.data);
+    });
+}
+function searchFaq(q) {
+    if (!q) { loadFaqs(); return; }
+    $.get(`${BASE}/faqs/suggest?q=${encodeURIComponent(q)}`, function (res) {
+        if (res.success) renderFaqList(res.data);
+    });
+}
+function renderFaqList(faqs) {
+    const container = document.getElementById('faqList');
+    container.innerHTML = '';
+    faqs.forEach(f => {
+        container.innerHTML += `
+        <div class="col-md-6">
+            <div class="faq-card">
+                <div class="d-flex justify-content-between">
+                    <div class="faq-q">${escHtml(f.question)}</div>
+                    <div>
+                        <span class="badge bg-secondary me-1">${f.categoryLabel || ''}</span>
+                        <button class="btn btn-xs btn-outline-primary me-1" onclick="openFaqModal(${JSON.stringify(f).replace(/"/g,'&quot;')})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-xs btn-outline-danger" onclick="deleteFaq(${f.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="faq-a">${escHtml(f.answer)}</div>
+                <div class="mt-1"><small class="text-muted"><i class="fas fa-fire me-1"></i>${f.hitCount} lần hỏi</small></div>
+            </div>
+        </div>`;
+    });
+}
+function openFaqModal(faq) {
+    if (faq) {
+        $('#faqModalTitle').text('Chỉnh sửa FAQ');
+        $('#faqId').val(faq.id);
+        $('#faqQuestion').val(faq.question);
+        $('#faqAnswer').val(faq.answer);
+        $('#faqCatInput').val(faq.category);
+        $('#faqKeywords').val(faq.keywords);
+    } else {
+        $('#faqModalTitle').text('Thêm FAQ');
+        ['faqId','faqQuestion','faqAnswer','faqKeywords'].forEach(id => $('#'+id).val(''));
+    }
+    new bootstrap.Modal(document.getElementById('faqModal')).show();
+}
+function saveFaq() {
+    const id = $('#faqId').val();
+    const payload = {
+        question: $('#faqQuestion').val().trim(),
+        answer:   $('#faqAnswer').val().trim(),
+        category: $('#faqCatInput').val(),
+        keywords: $('#faqKeywords').val().trim(),
+        isActive: true
+    };
+    const ok = FormValidator.validate('faqModal', [
+        { id: 'faqQuestion', label: 'Câu hỏi',     required: true },
+        { id: 'faqAnswer',   label: 'Câu trả lời', required: true }
+    ]);
+    if (!ok) return;
+    const url  = id ? `${BASE}/faqs/${id}` : `${BASE}/faqs`;
+    const type = id ? 'PUT' : 'POST';
+    $.ajax({ url, type, contentType:'application/json', data:JSON.stringify(payload),
+        success: function(res) {
+            if (res.success) {
+                bootstrap.Modal.getInstance(document.getElementById('faqModal')).hide();
+                showAlert('Lưu FAQ thành công','success');
+                loadFaqs();
+            }
+        }
+    });
+}
+function deleteFaq(id) {
+    if (!confirm('Xóa FAQ này?')) return;
+    $.ajax({ url:`${BASE}/faqs/${id}`, type:'DELETE', success: function(res) {
+        if (res.success) { showAlert('Đã xóa FAQ','success'); loadFaqs(); }
+    }});
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+function showAlert(msg, type) {
+    const normalized = type === 'error' ? 'danger' : (type || 'info');
+    if (window.showAppToast) {
+        window.showAppToast(msg, normalized);
+    }
+    const box = document.getElementById('alertBox');
+    box.className = `alert alert-${normalized} alert-dismissible fade show`;
+    document.getElementById('alertMsg').textContent = msg;
+    setTimeout(() => box.classList.add('d-none'), 3500);
+}
+function hideAlert() {
+    document.getElementById('alertBox').classList.add('d-none');
+}
+function escHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function formatDate(d) {
+    if (!d) return '';
+    return new Date(d).toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function formatDateTime(d) { return formatDate(d); }
+function formatMoney(n) {
+    return new Intl.NumberFormat('vi-VN').format(n);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sản xuất & Tiến độ - Metric System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <!-- FullCalendar v6 -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+    <style>
+        /* ─── Alert colors ─────────────────────────────────────────────── */
+        .alert-dot { width:12px;height:12px;border-radius:50%;display:inline-block;flex-shrink:0; }
+        .alert-GREEN  { background:#66bb6a; }
+        .alert-YELLOW { background:#ffb74d; }
+        .alert-RED    { background:#ef5350; }
+
+        .stage-circle {
+            width:34px;height:34px;border-radius:50%;border:2px solid #ccc;
+            display:inline-flex;align-items:center;justify-content:center;
+            font-size:11px;font-weight:700;color:#777;background:#fff;
+            transition:all .2s;
+        }
+        .stage-circle.COMPLETED  { background:#66bb6a;border-color:#66bb6a;color:#fff; }
+        .stage-circle.IN_PROGRESS{ background:#1976d2;border-color:#1976d2;color:#fff;box-shadow:0 0 0 3px rgba(25,118,210,.25); }
+        .stage-circle.SKIPPED    { background:#bdbdbd;border-color:#bdbdbd;color:#fff; }
+        .stage-connector { flex:1;height:2px;background:#e0e0e0;margin:0 2px; }
+        .stage-connector.done { background:#66bb6a; }
+
+        /* ─── Stage card in detail panel ──────────────────────────────── */
+        .stage-card { border-radius:12px;border:2px solid #e3e6f0;padding:16px;
+                       transition:border-color .2s; }
+        .stage-card.border-GREEN  { border-color:#66bb6a; }
+        .stage-card.border-YELLOW { border-color:#ffb74d; }
+        .stage-card.border-RED    { border-color:#ef5350; }
+        .stage-card.status-IN_PROGRESS { box-shadow:0 2px 12px rgba(25,118,210,.18); }
+
+        /* ─── Stat badges ──────────────────────────────────────────────── */
+        .stat-card { border-radius:12px;padding:18px 20px;color:#fff; }
+        .stat-card .val { font-size:26px;font-weight:700; }
+        .stat-card .lbl { font-size:12px;opacity:.85; }
+
+        /* ─── Log timeline ─────────────────────────────────────────────── */
+        .log-item { position:relative;padding-left:28px;margin-bottom:14px; }
+        .log-item::before { content:'';position:absolute;left:8px;top:0;bottom:-14px;width:2px;background:#e0e0e0; }
+        .log-item:last-child::before { display:none; }
+        .log-dot { position:absolute;left:0;top:4px;width:18px;height:18px;border-radius:50%;
+                    background:#1976d2;border:2px solid #fff;box-shadow:0 0 0 1px #1976d2; }
+
+        /* ─── Tab ──────────────────────────────────────────────────────── */
+        .nav-tabs .nav-link { color:#495057; }
+        .nav-tabs .nav-link.active { color:#0d6efd;font-weight:600; }
+
+        #calendarContainer { height:680px; }
+
+        .badge-PENDING     { background:#9e9e9e;color:#fff; }
+        .badge-IN_PROGRESS { background:#1976d2;color:#fff; }
+        .badge-COMPLETED   { background:#43a047;color:#fff; }
+        .badge-SKIPPED     { background:#bdbdbd;color:#fff; }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{dashboard :: sidebar}"></div>
+
+<div class="main-content" id="mainContent">
+
+    <!-- ─── Header ─────────────────────────────────────────────────────── -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-0"><i class="fas fa-industry me-2 text-primary"></i>Sản xuất &amp; Tiến độ</h4>
+            <small class="text-muted">Theo dõi 4 công đoạn sản xuất, phân công thợ, cảnh báo màu &amp; lịch làm việc</small>
+        </div>
+    </div>
+
+    <!-- ─── Stat row ─────────────────────────────────────────────────────── -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#66bb6a,#a5d6a7)">
+                <div class="lbl">Đúng tiến độ</div>
+                <div class="val" id="statGreen">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#ff9800,#ffcc80)">
+                <div class="lbl">Sắp trễ hạn</div>
+                <div class="val" id="statYellow">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#ef5350,#ef9a9a)">
+                <div class="lbl">Quá hạn</div>
+                <div class="val" id="statRed">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#7b1fa2,#ce93d8)">
+                <div class="lbl">Đơn có sản xuất</div>
+                <div class="val" id="statTotal">–</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── Tab nav ─────────────────────────────────────────────────────── -->
+    <ul class="nav nav-tabs mb-3" id="prodTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabPipeline" type="button">
+                <i class="fas fa-stream me-1"></i>Pipeline Đơn hàng
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabStageDetail" type="button"
+                    id="tabDetailBtn">
+                <i class="fas fa-tasks me-1"></i>Chi tiết Công đoạn
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCalendar" type="button"
+                    id="tabCalBtn" onclick="initCalendar()">
+                <i class="fas fa-calendar-alt me-1"></i>Lịch Sản xuất
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+
+        <!-- ══════════════════════════════════════════════════════════════
+             TAB 1 — PIPELINE ĐƠN HÀNG
+             ══════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane fade show active" id="tabPipeline">
+
+            <!-- Toolbar -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body py-2">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-3">
+                            <select class="form-select form-select-sm" id="filterAlert" onchange="loadPipeline()">
+                                <option value="">Tất cả cảnh báo</option>
+                                <option value="GREEN">✅ Đúng tiến độ</option>
+                                <option value="YELLOW">⚠️ Sắp trễ</option>
+                                <option value="RED">🔴 Quá hạn</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" class="form-control form-control-sm" id="filterPipelineSearch"
+                                   placeholder="Tìm mã đơn / tên khách…" oninput="filterPipelineLocally()">
+                        </div>
+                        <div class="col-md-5 text-end">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="loadPipeline()">
+                                <i class="fas fa-sync-alt"></i> Làm mới
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pipeline table -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="pipelineTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:130px">Mã đơn</th>
+                                    <th>Khách hàng</th>
+                                    <th>Hẹn giao</th>
+                                    <th>Tiến trình (4 công đoạn)</th>
+                                    <th>Cảnh báo</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pipelineBody">
+                                <tr><td colspan="6" class="text-center py-4 text-muted">Đang tải…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════════
+             TAB 2 — CHI TIẾT CÔNG ĐOẠN
+             ══════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane fade" id="tabStageDetail">
+            <div id="detailPlaceholder" class="text-center text-muted py-5">
+                <i class="fas fa-mouse-pointer fa-2x mb-3"></i>
+                <p>Chọn một đơn hàng từ tab Pipeline để xem chi tiết công đoạn</p>
+            </div>
+            <div id="detailPanel" style="display:none">
+                <!-- Order info bar -->
+                <div class="alert alert-info d-flex justify-content-between align-items-center mb-3 py-2" id="detailOrderInfo">
+                    <span id="detailOrderTitle"></span>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="closeDetailPanel()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- 4 stage cards in horizontal timeline -->
+                <div class="row g-3 mb-4" id="stageCardsRow"></div>
+
+                <!-- Stage log (filled when a stage card is clicked) -->
+                <div class="card border-0 shadow-sm mt-2" id="stageLogArea" style="display:none">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-history me-2"></i>Nhật ký thay đổi — <span id="logStageName"></span></span>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="$('#stageLogArea').hide()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="card-body" id="stageLogBody"><p class="text-center text-muted">Đang tải…</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════════
+             TAB 3 — LỊCH SẢN XUẤT (FullCalendar)
+             ══════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane fade" id="tabCalendar">
+            <!-- Calendar filter toolbar -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body py-2">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-3">
+                            <select class="form-select form-select-sm" id="calViewType" onchange="reloadCalendar()">
+                                <option value="all">📅 Tổng hợp tất cả</option>
+                                <option value="staff">👤 Theo nhân viên</option>
+                                <option value="order">📦 Theo đơn hàng</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3" id="calStaffFilter" style="display:none">
+                            <select class="form-select form-select-sm" id="calStaffId" onchange="reloadCalendar()">
+                                <option value="">-- Chọn nhân viên --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3" id="calOrderFilter" style="display:none">
+                            <input type="text" class="form-control form-control-sm" id="calOrderId"
+                                   placeholder="Nhập ID đơn hàng…" oninput="reloadCalendar()">
+                        </div>
+                        <div class="col-auto ms-auto">
+                            <div class="d-flex gap-2 align-items-center small text-muted">
+                                <span class="alert-dot alert-GREEN"></span>Đúng tiến độ
+                                <span class="alert-dot alert-YELLOW ms-2"></span>Sắp trễ
+                                <span class="alert-dot alert-RED ms-2"></span>Quá hạn
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div id="calendarContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div><!-- /tab-content -->
+</div><!-- /main-content -->
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     MODALS
+     ════════════════════════════════════════════════════════════════════ -->
+
+<!-- Init production stages modal -->
+<div class="modal fade" id="initModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-play-circle me-2"></i>Khởi động Sản xuất</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Hành động này sẽ tạo <strong>4 công đoạn sản xuất</strong> cho đơn hàng
+                    <strong id="initOrderCode"></strong>.</p>
+                <p class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>
+                    Yêu cầu: đơn hàng đã xác nhận đặt cọc.</p>
+                <input type="hidden" id="initOrderId">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button class="btn btn-primary" onclick="confirmInitStages()">
+                    <i class="fas fa-rocket me-1"></i>Khởi động
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assign worker / sale modal -->
+<div class="modal fade" id="assignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user-hard-hat me-2"></i>Gán nhân công</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="assignStageId">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Thợ may</label>
+                    <select class="form-select" id="assignWorkerId">
+                        <option value="">-- Không gán --</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Nhân viên sale phụ trách</label>
+                    <select class="form-select" id="assignSaleId">
+                        <option value="">-- Không gán --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button class="btn btn-primary" onclick="confirmAssign()">
+                    <i class="fas fa-save me-1"></i>Lưu
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Schedule stage modal -->
+<div class="modal fade" id="scheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-calendar-check me-2"></i>Đặt lịch kế hoạch</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="scheduleStageId">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Ngày bắt đầu</label>
+                        <input type="date" class="form-control" id="scheduleStart">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Ngày kết thúc dự kiến</label>
+                        <input type="date" class="form-control" id="scheduleEnd">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button class="btn btn-primary" onclick="confirmSchedule()">
+                    <i class="fas fa-save me-1"></i>Lưu
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Commission override modal -->
+<div class="modal fade" id="commissionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-percent me-2"></i>Override Hoa hồng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="commissionStageId">
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Tỷ lệ (%)</label>
+                        <input type="number" step="0.01" class="form-control" id="commissionRate" placeholder="5.00">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Số tiền (VNĐ)</label>
+                        <input type="number" step="1000" class="form-control" id="commissionAmount" placeholder="500000">
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Lý do override</label>
+                    <input type="text" class="form-control" id="commissionReason" placeholder="Ghi lý do…">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button class="btn btn-warning" onclick="confirmCommission()">
+                    <i class="fas fa-save me-1"></i>Lưu override
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add note modal -->
+<div class="modal fade" id="noteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-sticky-note me-2"></i>Thêm ghi chú</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="noteStageId">
+                <textarea class="form-control" id="noteText" rows="4"
+                          placeholder="Nhập ghi chú…"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button class="btn btn-primary" onclick="confirmNote()">
+                    <i class="fas fa-save me-1"></i>Lưu
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FullCalendar v6 -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script th:src="@{/js/form-validator.js}"></script>
+
+<script>
+var API = '/api';
+var currentOrderId = null;
+var currentStages  = [];
+var allWorkers     = [];
+var allSales       = [];
+var calendarInstance = null;
+var calInitialized   = false;
+
+/* ─── Init ──────────────────────────────────────────────────────────── */
+$(document).ready(function () {
+    loadOverview();
+    loadPipeline();
+    loadStaffLists();
+});
+
+/* ─── Overview ─────────────────────────────────────────────────────── */
+function loadOverview() {
+    $.getJSON(API + '/production/overview', function (res) {
+        if (res.success) {
+            const d = res.data;
+            $('#statGreen').text(d.GREEN || 0);
+            $('#statYellow').text(d.YELLOW || 0);
+            $('#statRed').text(d.RED || 0);
+        }
+    });
+    $.getJSON(API + '/orders?page=0&size=500', function (res) {
+        if (res.success) {
+            const confirmed = (res.data || []).filter(o => o.depositStatus === 'CONFIRMED');
+            $('#statTotal').text(confirmed.length);
+        }
+    }).fail(function () { $('#statTotal').text('–'); });
+}
+
+/* ─── Pipeline ─────────────────────────────────────────────────────── */
+var pipelineData = [];
+
+function loadPipeline() {
+    $.getJSON(API + '/orders?page=0&size=500', function (res) {
+        if (!res.success) return;
+        const orders = res.data || res.content || [];
+        // Load stages for each confirmed-deposit order
+        const confirmed = orders.filter(o => o.depositStatus === 'CONFIRMED');
+        pipelineData = [];
+        if (confirmed.length === 0) { renderPipeline([]); return; }
+        let loaded = 0;
+        confirmed.forEach(order => {
+            $.getJSON(API + '/orders/' + order.id + '/production/stages', function (sr) {
+                pipelineData.push({ order, stages: sr.success ? sr.data : [] });
+                loaded++;
+                if (loaded === confirmed.length) renderPipeline(pipelineData);
+            }).fail(function () {
+                pipelineData.push({ order, stages: [] });
+                loaded++;
+                if (loaded === confirmed.length) renderPipeline(pipelineData);
+            });
+        });
+    }).fail(function () {
+        $('#pipelineBody').html('<tr><td colspan="6" class="text-center text-danger">Không thể tải dữ liệu</td></tr>');
+    });
+}
+
+function filterPipelineLocally() {
+    const q = $('#filterPipelineSearch').val().toLowerCase();
+    const filtered = pipelineData.filter(d =>
+        (d.order.orderCode || '').toLowerCase().includes(q) ||
+        (d.order.customerName || '').toLowerCase().includes(q));
+    renderPipeline(filtered);
+}
+
+function renderPipeline(rows) {
+    const alertFilter = $('#filterAlert').val();
+    let html = '';
+    rows.forEach(({ order, stages }) => {
+        // Compute max alert across active stages
+        const alerts = stages.map(s => s.alertStatus);
+        const maxAlert = alerts.includes('RED') ? 'RED' : alerts.includes('YELLOW') ? 'YELLOW' : 'GREEN';
+
+        if (alertFilter && maxAlert !== alertFilter) return;
+
+        const stageTypes = ['CUT','ASSEMBLE','FITTING','DELIVERY'];
+        const stageNames = { CUT:'Cắt', ASSEMBLE:'Ráp', FITTING:'Thử', DELIVERY:'Giao' };
+        const progressHtml = stageTypes.map((type, idx) => {
+            const st = stages.find(s => s.stageType === type);
+            const status = st ? st.status : 'PENDING';
+            const alert  = st ? (st.alertStatus || 'GREEN') : 'GREEN';
+            const initials = type.substring(0, 1);
+            let circleClass = status;
+            // only show alert color ring on non-COMPLETED
+            const alertRing = (status !== 'COMPLETED' && status !== 'SKIPPED')
+                ? `title="${stageNames[type]}: ${statusLabel(status)}" data-alert="${alert}"` : '';
+            return `<span class="stage-circle ${circleClass}" ${alertRing}>${initials}</span>` +
+                   (idx < 3 ? `<span class="stage-connector ${(status==='COMPLETED'||status==='SKIPPED')?'done':''}"></span>` : '');
+        }).join('');
+
+        const hasStages = stages.length > 0;
+        html += `
+        <tr>
+            <td><strong>${order.orderCode || '–'}</strong></td>
+            <td>${order.customerName || '–'}</td>
+            <td>${order.promisedDate || '–'}</td>
+            <td>
+                <div class="d-flex align-items-center" style="gap:2px;min-width:180px">
+                    ${progressHtml}
+                </div>
+            </td>
+            <td>
+                <span class="alert-dot alert-${maxAlert}"></span>
+                <span class="small ms-1 text-muted">${alertLabel(maxAlert)}</span>
+            </td>
+            <td>
+                <div class="d-flex gap-1">
+                    ${hasStages
+                        ? `<button class="btn btn-xs btn-sm btn-outline-primary" onclick="openDetailPanel(${order.id})">
+                               <i class="fas fa-tasks"></i> Chi tiết
+                           </button>`
+                        : `<button class="btn btn-xs btn-sm btn-success" onclick="openInitModal(${order.id},'${order.orderCode||''}')">
+                               <i class="fas fa-rocket"></i> Khởi động
+                           </button>`
+                    }
+                </div>
+            </td>
+        </tr>`;
+    });
+    if (!html) html = '<tr><td colspan="6" class="text-center py-4 text-muted">Không có đơn hàng nào phù hợp</td></tr>';
+    $('#pipelineBody').html(html);
+}
+
+/* ─── Init stages ──────────────────────────────────────────────────── */
+function openInitModal(orderId, orderCode) {
+    $('#initOrderId').val(orderId);
+    $('#initOrderCode').text(orderCode);
+    new bootstrap.Modal(document.getElementById('initModal')).show();
+}
+
+function confirmInitStages() {
+    const orderId = $('#initOrderId').val();
+    const userId  = window._currentUserId || 1;
+    $.ajax({
+        url: API + '/orders/' + orderId + '/production/init',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ userId }),
+        success: function (res) {
+            if (res.success) {
+                bootstrap.Modal.getInstance(document.getElementById('initModal')).hide();
+                showToast('Đã khởi tạo 4 công đoạn sản xuất!', 'success');
+                loadPipeline();
+                loadOverview();
+            } else {
+                showToast(res.message || 'Lỗi khởi tạo', 'danger');
+            }
+        },
+        error: function (xhr) {
+            const msg = xhr.responseJSON?.message || 'Lỗi server';
+            showToast(msg, 'danger');
+        }
+    });
+}
+
+/* ─── Detail panel ─────────────────────────────────────────────────── */
+function openDetailPanel(orderId) {
+    currentOrderId = orderId;
+    $('#detailPlaceholder').hide();
+    $('#detailPanel').show();
+    $('#stageLogArea').hide();
+    // Switch to detail tab
+    bootstrap.Tab.getInstance(document.getElementById('tabDetailBtn')) ||
+        new bootstrap.Tab(document.getElementById('tabDetailBtn'));
+    new bootstrap.Tab(document.getElementById('tabDetailBtn')).show();
+    loadStageCards(orderId);
+}
+
+function closeDetailPanel() {
+    $('#detailPanel').hide();
+    $('#detailPlaceholder').show();
+    currentOrderId = null;
+}
+
+function loadStageCards(orderId) {
+    $.getJSON(API + '/orders/' + orderId + '/production/stages', function (res) {
+        if (!res.success) return;
+        currentStages = res.data;
+        const order   = currentStages[0] || {};
+        $('#detailOrderTitle').html(
+            `<i class="fas fa-clipboard me-2"></i>Đơn hàng: <strong>${order.orderCode||''}</strong>
+             &nbsp;|&nbsp; Khách: <strong>${order.customerName||''}</strong>`);
+        renderStageCards(currentStages);
+    });
+}
+
+function renderStageCards(stages) {
+    const stageNames = { CUT:'🪡 Cắt vải', ASSEMBLE:'🧵 Ráp may', FITTING:'👔 Thử & Chỉnh', DELIVERY:'📦 Giao hàng' };
+    let html = '';
+    stages.forEach(s => {
+        const alertClass = `border-${s.alertStatus||'GREEN'}`;
+        const statusClass = `status-${s.status}`;
+        html += `
+        <div class="col-sm-6 col-xl-3">
+            <div class="stage-card ${alertClass} ${statusClass}">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold">${stageNames[s.stageType]||s.stageType}</span>
+                    <span class="badge badge-${s.status}">${s.statusLabel||s.status}</span>
+                </div>
+                <div class="d-flex align-items-center gap-1 mb-2">
+                    <span class="alert-dot alert-${s.alertStatus}"></span>
+                    <small class="text-muted">${alertLabel(s.alertStatus)}</small>
+                </div>
+
+                <!-- Planned dates -->
+                <div class="mb-2 small">
+                    <span class="text-muted">Kế hoạch: </span>
+                    ${s.plannedStartDate ? s.plannedStartDate : '–'} →
+                    ${s.plannedEndDate   ? s.plannedEndDate   : '–'}
+                </div>
+                ${s.actualEndDate ? `<div class="mb-2 small text-success"><i class="fas fa-check me-1"></i>Thực tế HT: ${s.actualEndDate}</div>` : ''}
+
+                <!-- Worker & Sale -->
+                <div class="mb-2 small">
+                    <i class="fas fa-user-hard-hat me-1 text-primary"></i>Thợ: ${s.workerName||'<em class="text-muted">Chưa gán</em>'}
+                </div>
+                <div class="mb-3 small">
+                    <i class="fas fa-user-tie me-1 text-info"></i>Sale: ${s.saleName||'<em class="text-muted">Chưa gán</em>'}
+                </div>
+
+                <!-- Commission -->
+                <div class="mb-3 small">
+                    <i class="fas fa-percent me-1 text-warning"></i>Hoa hồng:
+                    <strong>${formatMoney(s.commissionAmount)}</strong>
+                    ${s.isCommissionOverride ? '<span class="badge bg-warning text-dark ms-1" title="'+s.commissionOverrideReason+'">override</span>' : ''}
+                </div>
+
+                <!-- Action buttons -->
+                <div class="d-flex flex-wrap gap-1">
+                    <!-- Status actions -->
+                    ${s.status === 'PENDING'      ? `<button class="btn btn-xs btn-sm btn-primary" onclick="updateStatus(${s.id},'IN_PROGRESS')" title="Bắt đầu"><i class="fas fa-play"></i></button>` : ''}
+                    ${s.status === 'IN_PROGRESS'  ? `<button class="btn btn-xs btn-sm btn-success" onclick="updateStatus(${s.id},'COMPLETED')" title="Hoàn thành"><i class="fas fa-check"></i></button>` : ''}
+                    ${s.status !== 'COMPLETED' && s.status !== 'SKIPPED'
+                        ? `<button class="btn btn-xs btn-sm btn-outline-secondary" onclick="updateStatus(${s.id},'SKIPPED')" title="Bỏ qua"><i class="fas fa-forward"></i></button>` : ''}
+
+                    <!-- Assign -->
+                    <button class="btn btn-xs btn-sm btn-outline-primary" onclick="openAssignModal(${s.id},${s.assignedWorkerId||'null'},${s.assignedSaleId||'null'})" title="Gán nhân công">
+                        <i class="fas fa-user-plus"></i>
+                    </button>
+                    <!-- Schedule -->
+                    <button class="btn btn-xs btn-sm btn-outline-info" onclick="openScheduleModal(${s.id},'${s.plannedStartDate||''}','${s.plannedEndDate||''}')" title="Đặt lịch">
+                        <i class="fas fa-calendar"></i>
+                    </button>
+                    <!-- Commission -->
+                    <button class="btn btn-xs btn-sm btn-outline-warning" onclick="openCommissionModal(${s.id})" title="Hoa hồng">
+                        <i class="fas fa-percent"></i>
+                    </button>
+                    <!-- Note -->
+                    <button class="btn btn-xs btn-sm btn-outline-secondary" onclick="openNoteModal(${s.id})" title="Ghi chú">
+                        <i class="fas fa-sticky-note"></i>
+                    </button>
+                    <!-- Log -->
+                    <button class="btn btn-xs btn-sm btn-outline-dark" onclick="loadStageLog(${s.id},'${stageNames[s.stageType]||s.stageType}')" title="Nhật ký">
+                        <i class="fas fa-history"></i>
+                    </button>
+                </div>
+
+                ${s.notes ? `<div class="mt-2 small text-muted border-top pt-1"><pre style="white-space:pre-wrap;font-size:11px;max-height:60px;overflow-y:auto;margin:0">${escapeHtml(s.notes)}</pre></div>` : ''}
+            </div>
+        </div>`;
+    });
+    $('#stageCardsRow').html(html);
+}
+
+/* ─── Status update ─────────────────────────────────────────────────── */
+function updateStatus(stageId, newStatus) {
+    const label = newStatus === 'IN_PROGRESS' ? 'bắt đầu' : newStatus === 'COMPLETED' ? 'hoàn thành' : 'bỏ qua';
+    if (!confirm('Xác nhận ' + label + ' công đoạn này?')) return;
+    $.ajax({
+        url: API + '/production/stages/' + stageId + '/status',
+        type: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ status: newStatus, userId: window._currentUserId || 1 }),
+        success: function (res) {
+            if (res.success) {
+                showToast('Trạng thái đã được cập nhật', 'success');
+                if (currentOrderId) loadStageCards(currentOrderId);
+                loadOverview();
+            } else { showToast(res.message || 'Lỗi', 'danger'); }
+        },
+        error: function (xhr) { showToast(xhr.responseJSON?.message || 'Lỗi server', 'danger'); }
+    });
+}
+
+/* ─── Assign ─────────────────────────────────────────────────────────── */
+function openAssignModal(stageId, workerId, saleId) {
+    $('#assignStageId').val(stageId);
+    populateWorkerSelects();
+    setTimeout(() => {
+        if (workerId) $('#assignWorkerId').val(workerId);
+        if (saleId)   $('#assignSaleId').val(saleId);
+    }, 200);
+    new bootstrap.Modal(document.getElementById('assignModal')).show();
+}
+
+function confirmAssign() {
+    const stageId  = $('#assignStageId').val();
+    const workerId = $('#assignWorkerId').val() || null;
+    const saleId   = $('#assignSaleId').val()   || null;
+    $.ajax({
+        url: API + '/production/stages/' + stageId + '/assign',
+        type: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ workerId, saleId, userId: window._currentUserId || 1 }),
+        success: function (res) {
+            if (res.success) {
+                bootstrap.Modal.getInstance(document.getElementById('assignModal')).hide();
+                showToast('Gán nhân công thành công!', 'success');
+                if (currentOrderId) loadStageCards(currentOrderId);
+            } else { showToast(res.message || 'Lỗi', 'danger'); }
+        },
+        error: function (xhr) { showToast(xhr.responseJSON?.message || 'Lỗi server', 'danger'); }
+    });
+}
+
+/* ─── Schedule ─────────────────────────────────────────────────────── */
+function openScheduleModal(stageId, start, end) {
+    $('#scheduleStageId').val(stageId);
+    $('#scheduleStart').val(start || '');
+    $('#scheduleEnd').val(end || '');
+    new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+}
+
+function confirmSchedule() {
+    const stageId = $('#scheduleStageId').val();
+    const plannedStartDate = $('#scheduleStart').val();
+    const plannedEndDate   = $('#scheduleEnd').val();
+    const ok = FormValidator.validate('scheduleModal', [
+        { id: 'scheduleEnd', label: 'Ngày kết thúc', required: false,
+          compare: { id: 'scheduleStart', op: 'gte', label: 'Ngày bắt đầu' } }
+    ]);
+    if (!ok) return;
+    $.ajax({
+        url: API + '/production/stages/' + stageId + '/schedule',
+        type: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ plannedStartDate, plannedEndDate, userId: window._currentUserId || 1 }),
+        success: function (res) {
+            if (res.success) {
+                bootstrap.Modal.getInstance(document.getElementById('scheduleModal')).hide();
+                showToast('Lịch kế hoạch đã được cập nhật!', 'success');
+                if (currentOrderId) loadStageCards(currentOrderId);
+            } else { showToast(res.message || 'Lỗi', 'danger'); }
+        },
+        error: function (xhr) { showToast(xhr.responseJSON?.message || 'Lỗi server', 'danger'); }
+    });
+}
+
+/* ─── Commission ─────────────────────────────────────────────────────── */
+function openCommissionModal(stageId) {
+    const stage = currentStages.find(s => s.id === stageId);
+    $('#commissionStageId').val(stageId);
+    if (stage) {
+        $('#commissionRate').val(stage.commissionRate || '');
+        $('#commissionAmount').val(stage.commissionAmount || '');
+        $('#commissionReason').val(stage.commissionOverrideReason || '');
+    }
+    new bootstrap.Modal(document.getElementById('commissionModal')).show();
+}
+
+function confirmCommission() {
+    const stageId = $('#commissionStageId').val();
+    const rate    = $('#commissionRate').val()   || null;
+    const amount  = $('#commissionAmount').val() || null;
+    const reason  = $('#commissionReason').val();
+    if (!rate && !amount) {
+        FormValidator.clearErrors('commissionModal');
+        const el = document.getElementById('commissionRate');
+        if (el) {
+            el.classList.add('is-invalid');
+            const fb = document.createElement('div');
+            fb.className = 'invalid-feedback fv-invalid-feedback d-block';
+            fb.textContent = 'Vui lòng nhập tỷ lệ hoặc số tiền hoa hồng';
+            el.parentElement.appendChild(fb);
+        }
+        return;
+    }
+    $.ajax({
+        url: API + '/production/stages/' + stageId + '/commission',
+        type: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ rate, amount, reason, userId: window._currentUserId || 1 }),
+        success: function (res) {
+            if (res.success) {
+                bootstrap.Modal.getInstance(document.getElementById('commissionModal')).hide();
+                showToast('Hoa hồng đã được cập nhật!', 'success');
+                if (currentOrderId) loadStageCards(currentOrderId);
+            } else { showToast(res.message || 'Lỗi', 'danger'); }
+        },
+        error: function (xhr) { showToast(xhr.responseJSON?.message || 'Lỗi server', 'danger'); }
+    });
+}
+
+/* ─── Note ───────────────────────────────────────────────────────────── */
+function openNoteModal(stageId) {
+    $('#noteStageId').val(stageId);
+    $('#noteText').val('');
+    new bootstrap.Modal(document.getElementById('noteModal')).show();
+}
+
+function confirmNote() {
+    const stageId = $('#noteStageId').val();
+    const note    = $('#noteText').val().trim();
+    const ok = FormValidator.validate('noteModal', [
+        { id: 'noteText', label: 'Ghi chú', required: true }
+    ]);
+    if (!ok) return;
+    $.ajax({
+        url: API + '/production/stages/' + stageId + '/notes',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ note, userId: window._currentUserId || 1 }),
+        success: function (res) {
+            if (res.success) {
+                bootstrap.Modal.getInstance(document.getElementById('noteModal')).hide();
+                showToast('Ghi chú đã được thêm!', 'success');
+                if (currentOrderId) loadStageCards(currentOrderId);
+            } else { showToast(res.message || 'Lỗi', 'danger'); }
+        },
+        error: function (xhr) { showToast(xhr.responseJSON?.message || 'Lỗi server', 'danger'); }
+    });
+}
+
+/* ─── Stage log ─────────────────────────────────────────────────────── */
+function loadStageLog(stageId, stageName) {
+    $('#logStageName').text(stageName);
+    $('#stageLogArea').show();
+    $('#stageLogBody').html('<p class="text-center text-muted">Đang tải…</p>');
+    $.getJSON(API + '/production/stages/' + stageId + '/logs', function (res) {
+        if (!res.success || !res.data.length) {
+            $('#stageLogBody').html('<p class="text-center text-muted">Chưa có nhật ký</p>');
+            return;
+        }
+        let html = '<div class="py-2">';
+        res.data.forEach(l => {
+            html += `
+            <div class="log-item">
+                <div class="log-dot"></div>
+                <div class="small">
+                    <strong>${l.changeTypeLabel||l.changeType}</strong>
+                    <span class="text-muted ms-2">${formatDt(l.changedAt)}</span>
+                    <span class="text-muted ms-2">— ${l.changedByName||'Hệ thống'}</span>
+                </div>
+                ${l.oldValue ? `<div class="small text-muted">Cũ: <em>${escapeHtml(l.oldValue)}</em></div>` : ''}
+                ${l.newValue ? `<div class="small">Mới: <strong>${escapeHtml(l.newValue)}</strong></div>` : ''}
+                ${l.changeNote ? `<div class="small text-muted fst-italic">${escapeHtml(l.changeNote)}</div>` : ''}
+            </div>`;
+        });
+        html += '</div>';
+        $('#stageLogBody').html(html);
+    });
+    // Scroll into view
+    document.getElementById('stageLogArea').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+/* ─── Calendar ──────────────────────────────────────────────────────── */
+function initCalendar() {
+    if (calInitialized) return;
+    calInitialized = true;
+    calendarInstance = new FullCalendar.Calendar(document.getElementById('calendarContainer'), {
+        initialView: 'dayGridMonth',
+        locale: 'vi',
+        height: 680,
+        headerToolbar: {
+            left:   'prev,next today',
+            center: 'title',
+            right:  'dayGridMonth,timeGridWeek,listMonth'
+        },
+        events: function (info, success, failure) {
+            const viewType  = $('#calViewType').val();
+            const staffId   = $('#calStaffId').val();
+            const orderIdVal= $('#calOrderId').val();
+            let url = API + '/production/calendar';
+
+            if (viewType === 'staff' && staffId) {
+                url = `${API}/production/calendar/staff/${staffId}`;
+                url += `?start=${info.start.toISOString()}&end=${info.end.toISOString()}`;
+            } else if (viewType === 'order' && orderIdVal) {
+                url = `${API}/production/calendar/order/${orderIdVal}`;
+            } else {
+                url += `?start=${info.start.toISOString()}&end=${info.end.toISOString()}`;
+            }
+
+            $.getJSON(url, function (res) {
+                if (res.success) {
+                    success(res.data.map(e => ({
+                        id:    e.id,
+                        title: e.title,
+                        start: e.start,
+                        end:   e.end,
+                        color: e.color || '#1976d2',
+                        allDay: e.allDay,
+                        extendedProps: {
+                            orderCode:    e.orderCode,
+                            staffName:    e.staffName,
+                            stageTypeName:e.stageTypeName,
+                            stageStatus:  e.stageStatus,
+                            alertStatus:  e.alertStatus,
+                            notes:        e.notes
+                        }
+                    })));
+                } else { failure('API error'); }
+            }).fail(function (xhr) { failure(xhr.statusText); });
+        },
+        eventClick: function (info) {
+            const p = info.event.extendedProps;
+            const content = `
+                <strong>${info.event.title}</strong><br>
+                Đơn: ${p.orderCode||'–'} | Loại: ${p.stageTypeName||'–'}<br>
+                Nhân viên: ${p.staffName||'–'}<br>
+                Trạng thái: ${p.stageStatus||'–'} | Cảnh báo: ${p.alertStatus||'–'}
+                ${p.notes ? '<br><em>' + escapeHtml(p.notes) + '</em>' : ''}
+            `;
+            alert(content.replace(/<br>/g, '\n').replace(/<[^>]+>/g, ''));
+        }
+    });
+    calendarInstance.render();
+}
+
+function reloadCalendar() {
+    const viewType = $('#calViewType').val();
+    $('#calStaffFilter').toggle(viewType === 'staff');
+    $('#calOrderFilter').toggle(viewType === 'order');
+    if (calendarInstance) calendarInstance.refetchEvents();
+}
+
+/* ─── Staff lists ────────────────────────────────────────────────────── */
+function loadStaffLists() {
+    $.getJSON(API + '/staff?page=0&size=200', function (res) {
+        const staff = res.success ? (res.data || res.content || []) : [];
+        allWorkers = staff.filter(s => s.staffRole === 'STAFF');
+        allSales   = staff.filter(s => s.staffRole === 'SALE' || s.staffRole === 'MANAGER');
+        populateWorkerSelects();
+        // Populate calendar staff filter
+        staff.forEach(s => {
+            $('#calStaffId').append(`<option value="${s.id}">${s.fullName} (${s.staffRole})</option>`);
+        });
+    });
+}
+
+function populateWorkerSelects() {
+    let wHtml = '<option value="">-- Không gán --</option>';
+    allWorkers.forEach(s => { wHtml += `<option value="${s.id}">${s.fullName}</option>`; });
+    $('#assignWorkerId').html(wHtml);
+
+    let sHtml = '<option value="">-- Không gán --</option>';
+    allSales.forEach(s => { sHtml += `<option value="${s.id}">${s.fullName}</option>`; });
+    $('#assignSaleId').html(sHtml);
+}
+
+/* ─── Utilities ──────────────────────────────────────────────────────── */
+function alertLabel(a) {
+    return a === 'RED' ? 'Quá hạn' : a === 'YELLOW' ? 'Sắp trễ' : 'Đúng tiến độ';
+}
+function statusLabel(s) {
+    const m = {PENDING:'Chờ',IN_PROGRESS:'Đang làm',COMPLETED:'Hoàn thành',SKIPPED:'Bỏ qua'};
+    return m[s] || s;
+}
+function formatMoney(n) {
+    if (!n && n !== 0) return '–';
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
+}
+function formatDt(dt) {
+    if (!dt) return '–';
+    return new Date(dt).toLocaleString('vi-VN');
+}
+function escapeHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function showToast(msg, type = 'info') {
+    if (window.showAppToast) {
+        window.showAppToast(msg, type);
+        return;
+    }
+    const id = 'toast_' + Date.now();
+    const el = document.createElement('div');
+    el.id = id;
+    el.className = `alert alert-${type} alert-dismissible position-fixed top-0 end-0 m-3`;
+    el.style.cssText = 'z-index:9999;max-width:360px;opacity:0;transition:opacity .3s';
+    el.innerHTML = msg + `<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    document.body.appendChild(el);
+    setTimeout(() => { el.style.opacity = '1'; }, 50);
+    setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 300);
+    }, 4000);
+}
+</script>
+</body>
+</html>

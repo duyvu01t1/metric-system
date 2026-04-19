@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Báo giá & Đặt cọc - Metric System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        /* ─── Status Badges ──────────────────────────────────────── */
+        .badge-DRAFT     { background: #9e9e9e; color:#fff; }
+        .badge-SENT      { background: #1976d2; color:#fff; }
+        .badge-ACCEPTED  { background: #43a047; color:#fff; }
+        .badge-REJECTED  { background: #e53935; color:#fff; }
+        .badge-CONVERTED { background: #7b1fa2; color:#fff; }
+
+        /* ─── Deposit status ─────────────────────────────────────── */
+        .deposit-NONE      { color: #9e9e9e; }
+        .deposit-PENDING   { color: #ff9800; }
+        .deposit-CONFIRMED { color: #43a047; }
+
+        /* ─── Price breakdown box ────────────────────────────────── */
+        .price-breakdown {
+            background: #f8f9fc; border: 1px solid #e3e6f0;
+            border-radius: 8px; padding: 16px;
+        }
+        .price-breakdown .price-row { display: flex; justify-content: space-between;
+                                       padding: 3px 0; font-size: 14px; }
+        .price-breakdown .price-row.total {
+            font-weight: 700; font-size: 16px;
+            border-top: 1px solid #dee2e6; margin-top: 6px; padding-top: 8px;
+        }
+        .price-breakdown .price-row.discount { color: #e53935; }
+
+        /* ─── Section title ──────────────────────────────────────── */
+        .section-title { font-size: 15px; font-weight: 600;
+                          border-bottom: 2px solid #e3e6f0;
+                          padding-bottom: 6px; margin-bottom: 16px; }
+
+        /* ─── Staff commission card ──────────────────────────────── */
+        .commission-card { border: 1px solid #e3e6f0; border-radius: 8px; padding: 12px 16px; }
+        .commission-card .role-badge-PRIMARY   { background:#1976d2;color:#fff;border-radius:4px;padding:2px 8px;font-size:12px; }
+        .commission-card .role-badge-SECONDARY { background:#0097a7;color:#fff;border-radius:4px;padding:2px 8px;font-size:12px; }
+
+        /* ─── Affiliate table ────────────────────────────────────── */
+        .stat-card { border-radius: 12px; padding: 18px 20px; color: #fff; }
+        .stat-card .val { font-size: 26px; font-weight: 700; }
+        .stat-card .lbl { font-size: 12px; opacity: .85; }
+
+        .deposit-lock-icon { font-size: 22px; cursor: pointer; transition: color .2s; }
+
+        /* ─── Tab link ───────────────────────────────────────────── */
+        .nav-tabs .nav-link { color: #495057; }
+        .nav-tabs .nav-link.active { color: #0d6efd; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{dashboard :: sidebar}"></div>
+
+<div class="main-content" id="mainContent">
+
+    <!-- ─── Header ──────────────────────────────────────────────────────── -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-0"><i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Báo giá & Đặt cọc</h4>
+            <small class="text-muted">Quản lý báo giá, xác nhận đặt cọc, phân công nhân viên & hoa hồng</small>
+        </div>
+    </div>
+
+    <!-- ─── Stat row ─────────────────────────────────────────────────────── -->
+    <div class="row g-3 mb-4" id="statRow">
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#1976d2,#42a5f5)">
+                <div class="lbl">Tổng báo giá</div>
+                <div class="val" id="statTotal">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#43a047,#81c784)">
+                <div class="lbl">Đã chuyển đổi</div>
+                <div class="val" id="statConverted">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#f57c00,#ffb74d)">
+                <div class="lbl">Chờ xác nhận cọc</div>
+                <div class="val" id="statDepositPending">–</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#7b1fa2,#ce93d8)">
+                <div class="lbl">Đối tác affiliate</div>
+                <div class="val" id="statAffiliates">–</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── Tab nav ──────────────────────────────────────────────────────── -->
+    <ul class="nav nav-tabs mb-3" id="mainTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabQuotations" type="button">
+                <i class="fas fa-list me-1"></i>Danh sách Báo giá
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabDeposit" type="button">
+                <i class="fas fa-coins me-1"></i>Đặt cọc & Nhân viên
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAffiliates" type="button">
+                <i class="fas fa-handshake me-1"></i>Đối tác &amp; Mã giảm giá
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+
+        <!-- ════════════════════════════════════════════════════════════
+             TAB 1 — DANH SÁCH BÁO GIÁ
+             ════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane fade show active" id="tabQuotations">
+
+            <!-- Filter toolbar -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body py-2">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-3">
+                            <select class="form-select form-select-sm" id="filterStatus" onchange="loadQuotations()">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="DRAFT">Bản nháp</option>
+                                <option value="SENT">Đã gửi</option>
+                                <option value="ACCEPTED">Đã chấp nhận</option>
+                                <option value="REJECTED">Từ chối</option>
+                                <option value="CONVERTED">Đã tạo đơn</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" class="form-control form-control-sm" id="filterSearch"
+                                   placeholder="Tìm theo mã / tên khách…" oninput="filterQuotationsLocally()">
+                        </div>
+                        <div class="col-md-5 text-end">
+                            <button class="btn btn-sm btn-primary" onclick="openQuotationModal(null)">
+                                <i class="fas fa-plus me-1"></i>Tạo báo giá
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary ms-1" onclick="loadQuotations()">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quotation table -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mã báo giá</th>
+                                    <th>Khách hàng</th>
+                                    <th>Loại đơn</th>
+                                    <th>Kênh nguồn</th>
+                                    <th class="text-end">Tổng tiền</th>
+                                    <th>Mã giảm giá</th>
+                                    <th>Trạng thái</th>
+                                    <th>Hiệu lực đến</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quotationTableBody">
+                                <tr><td colspan="9" class="text-center py-4 text-muted">Đang tải…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════════════════
+             TAB 2 — ĐẶT CỌC & NHÂN VIÊN
+             ════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane fade" id="tabDeposit">
+
+            <!-- Filter -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body py-2">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-4">
+                            <select class="form-select form-select-sm" id="filterDepositStatus" onchange="loadOrdersForDeposit()">
+                                <option value="">Tất cả trạng thái cọc</option>
+                                <option value="NONE">Chưa đặt cọc</option>
+                                <option value="PENDING">Đang chờ xác nhận</option>
+                                <option value="CONFIRMED">Đã xác nhận</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" class="form-control form-control-sm" id="searchOrderDeposit"
+                                   placeholder="Tìm mã đơn hàng…" oninput="filterDepositLocally()">
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="loadOrdersForDeposit()">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders deposit table -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mã đơn hàng</th>
+                                    <th>Khách hàng</th>
+                                    <th class="text-end">Tổng tiền</th>
+                                    <th class="text-end">Số tiền cọc</th>
+                                    <th>Trạng thái cọc</th>
+                                    <th>Ngày xác nhận</th>
+                                    <th>Nhân viên chính</th>
+                                    <th>Nhân viên phụ</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="depositTableBody">
+                                <tr><td colspan="9" class="text-center py-4 text-muted">Đang tải…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════════════════
+             TAB 3 — ĐỐI TÁC & MÃ GIẢM GIÁ
+             ════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane fade" id="tabAffiliates">
+            <div class="row">
+                <!-- Affiliate list -->
+                <div class="col-lg-5">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="section-title mb-0">Đối tác affiliate</span>
+                        <button class="btn btn-sm btn-primary" onclick="openAffiliateModal(null)">
+                            <i class="fas fa-plus me-1"></i>Thêm đối tác
+                        </button>
+                    </div>
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Mã</th>
+                                            <th>Công ty</th>
+                                            <th class="text-end">Hoa hồng%</th>
+                                            <th class="text-end">Đơn hàng</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="affiliateTableBody">
+                                        <tr><td colspan="5" class="text-center py-3 text-muted">Đang tải…</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Discount codes for selected affiliate -->
+                <div class="col-lg-7">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="section-title mb-0">Mã giảm giá <span id="dcAffiliateLabel" class="text-muted fw-normal"></span></span>
+                        <button class="btn btn-sm btn-success" onclick="openDiscountCodeModal()" id="btnAddDiscountCode" disabled>
+                            <i class="fas fa-tag me-1"></i>Thêm mã
+                        </button>
+                    </div>
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Mã</th>
+                                            <th>Kiểu giảm</th>
+                                            <th class="text-end">Giá trị</th>
+                                            <th>Hiệu lực</th>
+                                            <th class="text-end">Đã dùng</th>
+                                            <th>Trạng thái</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="discountCodeTableBody">
+                                        <tr><td colspan="6" class="text-center py-3 text-muted">Chọn đối tác để xem mã giảm giá</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /tab-content -->
+</div><!-- /main-content -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL — TẠO / SỬA BÁO GIÁ
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="quotationModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-file-invoice-dollar me-2"></i><span id="quotationModalTitle">Tạo báo giá mới</span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="qId">
+                <div class="row g-3">
+                    <!-- Col 1 -->
+                    <div class="col-lg-7">
+                        <div class="section-title">Thông tin đơn</div>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label">Khách hàng <span class="text-danger">*</span></label>
+                                <select class="form-select" id="qCustomerId" required>
+                                    <option value="">– Chọn khách –</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Loại đơn <span class="text-danger">*</span></label>
+                                <select class="form-select" id="qOrderType" required>
+                                    <option value="SUIT">Vest / Bộ com-lê</option>
+                                    <option value="SHIRT">Áo sơ-mi</option>
+                                    <option value="PANTS">Quần âu</option>
+                                    <option value="DRESS">Đầm / Váy</option>
+                                    <option value="CUSTOM">Đặc biệt</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Kênh nguồn khách</label>
+                                <select class="form-select" id="qSourceChannelId">
+                                    <option value="">– Chọn kênh –</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Số lượng</label>
+                                <input type="number" class="form-control" id="qQuantity" value="1" min="1" oninput="recalcPrice()">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Đơn giá (₫)</label>
+                                <input type="number" class="form-control" id="qUnitPrice" placeholder="0" min="0" oninput="recalcPrice()">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Chất liệu vải</label>
+                                <input type="text" class="form-control" id="qFabricMaterial" placeholder="VD: Len Ý 100%, Cashmere blend…">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Màu vải</label>
+                                <input type="text" class="form-control" id="qFabricColor" placeholder="VD: Xanh navy, Đen…">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Chi phí vải (₫)</label>
+                                <input type="number" class="form-control" id="qFabricCost" placeholder="0" min="0" oninput="recalcPrice()">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Phụ liệu (nút, khóa, lót, v.v.)</label>
+                                <textarea class="form-control" id="qAccessories" rows="2" placeholder="VD: Nút sừng Ý, lót lụa, khóa kim loại…"></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Chi phí phụ liệu (₫)</label>
+                                <input type="number" class="form-control" id="qAccessoriesCost" placeholder="0" min="0" oninput="recalcPrice()">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Chi phí nhân công (₫)</label>
+                                <input type="number" class="form-control" id="qLaborCost" placeholder="0" min="0" oninput="recalcPrice()">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Hiệu lực đến</label>
+                                <input type="date" class="form-control" id="qValidUntil">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Ghi chú</label>
+                                <textarea class="form-control" id="qNotes" rows="2" placeholder="Ghi chú thêm…"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Col 2 — price & discount -->
+                    <div class="col-lg-5">
+                        <!-- Price breakdown -->
+                        <div class="section-title">Tổng hợp giá</div>
+                        <div class="price-breakdown mb-3">
+                            <div class="price-row"><span>Đơn giá × SL:</span><span id="pbUnitLine">0 ₫</span></div>
+                            <div class="price-row"><span>Chi phí vải:</span><span id="pbFabric">0 ₫</span></div>
+                            <div class="price-row"><span>Chi phí phụ liệu:</span><span id="pbAccessories">0 ₫</span></div>
+                            <div class="price-row"><span>Chi phí nhân công:</span><span id="pbLabor">0 ₫</span></div>
+                            <div class="price-row" style="border-top:1px dashed #dee2e6;margin-top:6px;padding-top:6px;">
+                                <span><strong>Tổng trước giảm:</strong></span><span id="pbSubtotal"><strong>0 ₫</strong></span>
+                            </div>
+                            <div class="price-row discount" id="pbDiscountRow" style="display:none">
+                                <span>Giảm giá (<span id="pbDiscountCode">–</span>):</span>
+                                <span id="pbDiscount">– 0 ₫</span>
+                            </div>
+                            <div class="price-row total">
+                                <span>Tổng thanh toán:</span><span id="pbTotal" class="text-primary">0 ₫</span>
+                            </div>
+                        </div>
+
+                        <!-- Discount code -->
+                        <div class="section-title">Mã giảm giá</div>
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control" id="qDiscountCodeInput" placeholder="Nhập mã giảm giá…"
+                                   style="text-transform:uppercase">
+                            <button class="btn btn-outline-primary" type="button" onclick="previewDiscountCode()">
+                                <i class="fas fa-tag me-1"></i>Áp dụng
+                            </button>
+                        </div>
+                        <div id="discountPreviewBox" class="alert alert-success py-2 px-3 mb-3" style="display:none; font-size:13px;"></div>
+                        <input type="hidden" id="qDiscountCodeId">
+                        <input type="hidden" id="qDiscountAmount" value="0">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" onclick="saveQuotation()">
+                    <i class="fas fa-save me-1"></i>Lưu báo giá
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL — XEM CHI TIẾT / ACTION BÁO GIÁ
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="quotationDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Chi tiết báo giá <span id="qdCode" class="text-primary"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="quotationDetailBody">
+                <!-- filled dynamically -->
+            </div>
+            <div class="modal-footer" id="quotationDetailActions">
+                <!-- action buttons depend on status -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL — ĐẶT CỌC & PHÂN CÔNG NHÂN VIÊN
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="depositModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="fas fa-coins me-2"></i>Đặt cọc & Phân công nhân viên</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="depositOrderId">
+
+                <!-- Deposit section -->
+                <div class="section-title">Xác nhận đặt cọc</div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Trạng thái cọc hiện tại</label>
+                        <div id="depositCurrentStatus" class="fw-bold">–</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Số tiền đặt cọc (₫)</label>
+                        <input type="number" class="form-control" id="depositAmount" placeholder="0" min="0">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button class="btn btn-warning w-100" onclick="confirmDeposit()" id="btnConfirmDeposit">
+                            <i class="fas fa-lock me-1"></i>Xác nhận đặt cọc
+                        </button>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Staff assignment -->
+                <div class="section-title">Phân công nhân viên <small class="text-muted fw-normal">(tính hoa hồng tự động)</small></div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Nhân viên chính <span class="text-danger">*</span></label>
+                        <select class="form-select" id="primaryStaffSelect">
+                            <option value="">– Chọn nhân viên –</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Nhân viên phụ</label>
+                        <select class="form-select" id="secondaryStaffSelect">
+                            <option value="">– Không –</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-primary" onclick="assignStaff()">
+                            <i class="fas fa-user-tag me-1"></i>Phân công &amp; Tính hoa hồng
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Commission cards -->
+                <div id="commissionCardsContainer" class="row g-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL — OVERRIDE HOA HỒNG THỦ CÔNG
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="commissionOverrideModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">Điều chỉnh hoa hồng</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="overrideCommissionId">
+                <div class="mb-2">
+                    <label class="form-label">Số tiền hoa hồng mới (₫)</label>
+                    <input type="number" class="form-control" id="overrideAmount" min="0">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Lý do điều chỉnh</label>
+                    <textarea class="form-control" id="overrideReason" rows="2" placeholder="Nhập lý do…"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Huỷ</button>
+                <button class="btn btn-sm btn-primary" onclick="submitCommissionOverride()">Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL — ĐỐI TÁC AFFILIATE
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="affiliateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="affiliateModalTitle"><i class="fas fa-handshake me-2"></i>Thêm đối tác</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="affId">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Mã đối tác</label>
+                        <input type="text" class="form-control" id="affCode" placeholder="AFF-xxx">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Tên công ty <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="affCompanyName" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Người liên hệ</label>
+                        <input type="text" class="form-control" id="affContactName">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">SĐT</label>
+                        <input type="text" class="form-control" id="affPhone">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="affEmail">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Tỉ lệ hoa hồng (%)</label>
+                        <input type="number" class="form-control" id="affCommissionRate" value="5" min="0" max="100" step="0.5">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Ghi chú</label>
+                        <textarea class="form-control" id="affNotes" rows="2"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button class="btn btn-primary" onclick="saveAffiliate()">Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     MODAL — MÃ GIẢM GIÁ
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="discountCodeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-tag me-2"></i>Tạo mã giảm giá</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="dcAffiliateId">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Mã giảm giá <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control text-uppercase" id="dcCode" required placeholder="VD: SUMMER25">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Kiểu giảm</label>
+                        <select class="form-select" id="dcType" onchange="toggleDiscountFields()">
+                            <option value="PERCENT">Phần trăm (%)</option>
+                            <option value="FIXED">Cố định (₫)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Giá trị giảm</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="dcValue" min="0" placeholder="0">
+                            <span class="input-group-text" id="dcValueUnit">%</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Giảm tối đa (₫) <small class="text-muted">(PERCENT)</small></label>
+                        <input type="number" class="form-control" id="dcMaxAmount" min="0" placeholder="Không giới hạn">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Giá trị đơn tối thiểu (₫)</label>
+                        <input type="number" class="form-control" id="dcMinOrder" min="0" value="0">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Số lần dùng tối đa</label>
+                        <input type="number" class="form-control" id="dcMaxUses" min="1" placeholder="Không giới hạn">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Hiệu lực từ</label>
+                        <input type="date" class="form-control" id="dcValidFrom">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Hết hạn</label>
+                        <input type="date" class="form-control" id="dcValidUntil">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Mô tả</label>
+                        <input type="text" class="form-control" id="dcDescription">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button class="btn btn-success" onclick="saveDiscountCode()">Tạo mã</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Bootstrap JS ──────────────────────────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script th:src="@{/js/form-validator.js}"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLOBAL STATE
+   ═══════════════════════════════════════════════════════════════════════════ */
+var API = '/api';
+var quotationsList  = [];
+var ordersList      = [];
+var affiliatesList  = [];
+var selectedAffId   = null;
+var staffList       = [];
+var channelList     = [];
+var customerList    = [];
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════════════════════════════ */
+loadStats();
+loadQuotations();
+loadDropdownData();
+
+// Lazy load on tab switch
+document.querySelectorAll('#mainTabs button').forEach(btn => {
+    btn.addEventListener('shown.bs.tab', e => {
+        const target = e.target.dataset.bsTarget;
+        if (target === '#tabDeposit')    loadOrdersForDeposit();
+        if (target === '#tabAffiliates') loadAffiliates();
+    });
+});
+
+function loadStats() {
+    fetch(`${API}/quotations?size=1`).then(r => r.json()).then(res => {
+        if (res.data) document.getElementById('statTotal').textContent = res.data.totalElements ?? '–';
+    }).catch(() => {});
+    fetch(`${API}/quotations?status=CONVERTED&size=1`).then(r => r.json()).then(res => {
+        if (res.data) document.getElementById('statConverted').textContent = res.data.totalElements ?? '–';
+    }).catch(() => {});
+    fetch(`${API}/affiliates?activeOnly=true`).then(r => r.json()).then(res => {
+        if (res.data) document.getElementById('statAffiliates').textContent = res.data.length ?? '–';
+    }).catch(() => {});
+}
+
+function loadDropdownData() {
+    // Channels
+    fetch(`${API}/channels`).then(r => r.json()).then(res => {
+        channelList = Array.isArray(res.data) ? res.data : (res.data?.content ?? []);
+        populateSelect('qSourceChannelId', channelList, 'id', 'name', '– Chọn kênh –');
+    }).catch(() => {});
+
+    // Customers
+    fetch(`${API}/customers?size=200`).then(r => r.json()).then(res => {
+        customerList = res.data?.content ?? res.data ?? [];
+        const sel = document.getElementById('qCustomerId');
+        sel.innerHTML = '<option value="">– Chọn khách –</option>';
+        customerList.forEach(c => {
+            sel.innerHTML += `<option value="${c.id}">${c.firstName} ${c.lastName} – ${c.phone ?? ''}</option>`;
+        });
+    }).catch(() => {});
+
+    // Staff
+    fetch(`${API}/staff?size=200`).then(r => r.json()).then(res => {
+        staffList = res.data?.content ?? res.data ?? [];
+    }).catch(() => {});
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TAB 1 — QUOTATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+function loadQuotations() {
+    const status = document.getElementById('filterStatus').value;
+    const url    = `${API}/quotations?size=200${status ? '&status=' + status : ''}`;
+    fetch(url).then(r => r.json()).then(res => {
+        quotationsList = res.data?.content ?? res.data ?? [];
+        renderQuotationTable(quotationsList);
+    }).catch(err => console.error(err));
+}
+
+function filterQuotationsLocally() {
+    const q = document.getElementById('filterSearch').value.toLowerCase();
+    const filtered = quotationsList.filter(r =>
+        (r.quotationCode ?? '').toLowerCase().includes(q) ||
+        (r.customerName  ?? '').toLowerCase().includes(q)
+    );
+    renderQuotationTable(filtered);
+}
+
+function renderQuotationTable(list) {
+    const tbody = document.getElementById('quotationTableBody');
+    if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted">Không có dữ liệu</td></tr>';
+        return;
+    }
+    tbody.innerHTML = list.map(q => `
+        <tr>
+            <td><strong>${q.quotationCode}</strong></td>
+            <td>${q.customerName ?? '–'}</td>
+            <td>${q.orderType}</td>
+            <td><small>${q.sourceChannelName ?? '–'}</small></td>
+            <td class="text-end">${fmt(q.totalAmount)}</td>
+            <td>${q.discountCodeValue ? `<span class="badge bg-success">${q.discountCodeValue}</span>` : '–'}</td>
+            <td><span class="badge badge-${q.status}">${statusLabel(q.status)}</span></td>
+            <td><small>${q.validUntil ?? '–'}</small></td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary py-0" onclick="viewQuotation(${q.id})" title="Xem / hành động">
+                    <i class="fas fa-eye"></i>
+                </button>
+                ${q.status === 'DRAFT' ? `<button class="btn btn-sm btn-outline-secondary py-0 ms-1" onclick="openQuotationModal(${q.id})" title="Sửa"><i class="fas fa-edit"></i></button>` : ''}
+            </td>
+        </tr>
+    `).join('');
+}
+
+function statusLabel(s) {
+    return { DRAFT:'Bản nháp', SENT:'Đã gửi', ACCEPTED:'Chấp nhận', REJECTED:'Từ chối', CONVERTED:'Đã tạo đơn' }[s] ?? s;
+}
+
+/* ─── Quotation Modal ─────────────────────────────────────────── */
+async function openQuotationModal(id) {
+    document.getElementById('quotationModalTitle').textContent = id ? 'Sửa báo giá' : 'Tạo báo giá mới';
+    clearQuotationForm();
+    if (id) {
+        const res  = await fetch(`${API}/quotations/${id}`).then(r => r.json());
+        const q    = res.data;
+        document.getElementById('qId').value            = q.id;
+        document.getElementById('qCustomerId').value    = q.customerId;
+        document.getElementById('qOrderType').value     = q.orderType;
+        document.getElementById('qSourceChannelId').value = q.sourceChannelId ?? '';
+        document.getElementById('qQuantity').value      = q.quantity;
+        document.getElementById('qUnitPrice').value     = q.unitPrice ?? 0;
+        document.getElementById('qFabricMaterial').value = q.fabricMaterial ?? '';
+        document.getElementById('qFabricColor').value   = q.fabricColor ?? '';
+        document.getElementById('qFabricCost').value    = q.fabricCost ?? 0;
+        document.getElementById('qAccessories').value   = q.accessories ?? '';
+        document.getElementById('qAccessoriesCost').value = q.accessoriesCost ?? 0;
+        document.getElementById('qLaborCost').value     = q.laborCost ?? 0;
+        document.getElementById('qValidUntil').value    = q.validUntil ?? '';
+        document.getElementById('qNotes').value         = q.notes ?? '';
+        document.getElementById('qDiscountCodeId').value = q.discountCodeId ?? '';
+        document.getElementById('qDiscountAmount').value = q.discountAmount ?? 0;
+        if (q.discountCodeValue) {
+            document.getElementById('qDiscountCodeInput').value = q.discountCodeValue;
+        }
+    }
+    recalcPrice();
+    new bootstrap.Modal(document.getElementById('quotationModal')).show();
+}
+
+function clearQuotationForm() {
+    ['qId','qCustomerId','qOrderType','qSourceChannelId','qFabricMaterial','qFabricColor',
+     'qAccessories','qNotes','qDiscountCodeId','qDiscountCodeInput'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    document.getElementById('qQuantity').value  = 1;
+    document.getElementById('qUnitPrice').value = '';
+    document.getElementById('qFabricCost').value = '';
+    document.getElementById('qAccessoriesCost').value = '';
+    document.getElementById('qLaborCost').value  = '';
+    document.getElementById('qDiscountAmount').value = 0;
+    document.getElementById('discountPreviewBox').style.display = 'none';
+    recalcPrice();
+}
+
+async function previewDiscountCode() {
+    const code       = document.getElementById('qDiscountCodeInput').value.trim().toUpperCase();
+    const orderTotal = parseFloat(document.getElementById('pbTotal').dataset.raw ?? 0);
+    if (!code) return;
+    try {
+        const res = await fetch(`${API}/discount-codes/validate?code=${encodeURIComponent(code)}&orderTotal=${orderTotal}`)
+            .then(r => r.json());
+        if (res.success && res.data) {
+            const dc  = res.data;
+            const discount = parseFloat(dc.estimatedDiscount ?? 0);
+            document.getElementById('qDiscountCodeId').value    = dc.id;
+            document.getElementById('qDiscountAmount').value   = discount;
+            document.getElementById('pbDiscountCode').textContent = dc.code;
+            document.getElementById('pbDiscount').textContent  = '– ' + fmt(discount);
+            document.getElementById('pbDiscountRow').style.display = '';
+            const total = Math.max(0, orderTotal - discount);
+            document.getElementById('pbTotal').textContent = fmt(total);
+            document.getElementById('pbTotal').dataset.raw = total;
+            document.getElementById('discountPreviewBox').style.display = '';
+            document.getElementById('discountPreviewBox').innerHTML =
+                `<i class="fas fa-check-circle me-1"></i>Mã hợp lệ — Giảm <strong>${fmt(discount)}</strong>. 
+                 ${dc.affiliateName ? `Đối tác: <strong>${dc.affiliateName}</strong>` : ''}`;
+        }
+    } catch(e) {
+        showToast('Mã giảm giá không hợp lệ hoặc đơn hàng chưa đủ điều kiện', 'danger');
+    }
+}
+
+async function saveQuotation() {
+    const id = document.getElementById('qId').value;
+    const payload = {
+        customerId:       +document.getElementById('qCustomerId').value,
+        orderType:        document.getElementById('qOrderType').value,
+        fabricMaterial:   document.getElementById('qFabricMaterial').value,
+        fabricColor:      document.getElementById('qFabricColor').value,
+        accessories:      document.getElementById('qAccessories').value,
+        quantity:         +document.getElementById('qQuantity').value,
+        unitPrice:        parseNum('qUnitPrice'),
+        fabricCost:       parseNum('qFabricCost'),
+        accessoriesCost:  parseNum('qAccessoriesCost'),
+        laborCost:        parseNum('qLaborCost'),
+        sourceChannelId:  valOrNull('qSourceChannelId'),
+        discountCodeId:   valOrNull('qDiscountCodeId'),
+        validUntil:       document.getElementById('qValidUntil').value || null,
+        notes:            document.getElementById('qNotes').value
+    };
+    const ok = FormValidator.validate('quotationModal', [
+        { id: 'qCustomerId', label: 'Khách hàng',    required: true },
+        { id: 'qOrderType',  label: 'Loại đơn hàng', required: true }
+    ]);
+    if (!ok) return;
+    const method = id ? 'PUT' : 'POST';
+    const url    = id ? `${API}/quotations/${id}` : `${API}/quotations`;
+    try {
+        const res = await fetch(url, {
+            method, headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(payload)
+        }).then(r => r.json());
+        if (res.success) {
+            bootstrap.Modal.getInstance(document.getElementById('quotationModal')).hide();
+            loadQuotations(); loadStats();
+            showToast(res.message, 'success');
+        } else { showToast(res.message ?? 'Lỗi', 'danger'); }
+    } catch(e) { showToast('Lỗi kết nối', 'danger'); }
+}
+
+async function viewQuotation(id) {
+    const res = await fetch(`${API}/quotations/${id}`).then(r => r.json());
+    const q   = res.data;
+    document.getElementById('qdCode').textContent = q.quotationCode;
+    document.getElementById('quotationDetailBody').innerHTML = `
+        <div class="row g-3">
+            <div class="col-md-6">
+                <table class="table table-sm table-borderless">
+                    <tr><th class="text-muted" width="40%">Khách hàng</th><td><strong>${q.customerName}</strong></td></tr>
+                    <tr><th class="text-muted">Loại đơn</th><td>${q.orderType}</td></tr>
+                    <tr><th class="text-muted">Kênh nguồn</th><td>${q.sourceChannelName ?? '–'}</td></tr>
+                    <tr><th class="text-muted">Chất liệu vải</th><td>${q.fabricMaterial ?? '–'}</td></tr>
+                    <tr><th class="text-muted">Màu vải</th><td>${q.fabricColor ?? '–'}</td></tr>
+                    <tr><th class="text-muted">Phụ liệu</th><td><small>${q.accessories ?? '–'}</small></td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <div class="price-breakdown">
+                    <div class="price-row"><span>Đơn giá × ${q.quantity}:</span><span>${fmt(q.unitPrice * q.quantity)}</span></div>
+                    <div class="price-row"><span>Chi phí vải:</span><span>${fmt(q.fabricCost)}</span></div>
+                    <div class="price-row"><span>Chi phí phụ liệu:</span><span>${fmt(q.accessoriesCost)}</span></div>
+                    <div class="price-row"><span>Chi phí nhân công:</span><span>${fmt(q.laborCost)}</span></div>
+                    <div class="price-row" style="border-top:1px dashed #dee2e6;margin-top:6px;padding-top:6px;">
+                        <span><b>Tổng trước giảm</b></span><span><b>${fmt(q.subtotal)}</b></span>
+                    </div>
+                    ${q.discountCodeValue ? `<div class="price-row discount"><span>Giảm (${q.discountCodeValue}):</span><span>– ${fmt(q.discountAmount)}</span></div>` : ''}
+                    <div class="price-row total"><span>Tổng thanh toán:</span><span class="text-primary">${fmt(q.totalAmount)}</span></div>
+                </div>
+                <div class="mt-2 small text-muted">Hiệu lực đến: ${q.validUntil ?? '–'}</div>
+                ${q.notes ? `<div class="mt-1 small text-muted fst-italic">${q.notes}</div>` : ''}
+            </div>
+        </div>
+    `;
+    // Action buttons depending on status
+    const footer = document.getElementById('quotationDetailActions');
+    footer.innerHTML = `<button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>`;
+    if (q.status === 'DRAFT') {
+        footer.innerHTML += ` <button class="btn btn-primary btn-sm" onclick="doSendQuotation(${q.id})"><i class="fas fa-paper-plane me-1"></i>Gửi báo giá</button>`;
+    }
+    if (q.status === 'SENT') {
+        footer.innerHTML += `
+            <button class="btn btn-success btn-sm" onclick="doAcceptQuotation(${q.id})"><i class="fas fa-check me-1"></i>Chấp nhận</button>
+            <button class="btn btn-danger btn-sm" onclick="doRejectQuotation(${q.id})"><i class="fas fa-times me-1"></i>Từ chối</button>`;
+    }
+    new bootstrap.Modal(document.getElementById('quotationDetailModal')).show();
+}
+
+async function doSendQuotation(id) {
+    const res = await fetch(`${API}/quotations/${id}/send`, {method:'POST'}).then(r => r.json());
+    if (res.success) { bootstrap.Modal.getInstance(document.getElementById('quotationDetailModal'))?.hide();
+        loadQuotations(); showToast(res.message, 'success'); }
+    else showToast(res.message, 'danger');
+}
+async function doAcceptQuotation(id) {
+    const res = await fetch(`${API}/quotations/${id}/accept`, {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' }).then(r => r.json());
+    if (res.success) { bootstrap.Modal.getInstance(document.getElementById('quotationDetailModal'))?.hide();
+        loadQuotations(); loadStats(); showToast(res.message, 'success'); }
+    else showToast(res.message, 'danger');
+}
+async function doRejectQuotation(id) {
+    if (!confirm('Từ chối báo giá này?')) return;
+    const res = await fetch(`${API}/quotations/${id}/reject`, {method:'POST'}).then(r => r.json());
+    if (res.success) { bootstrap.Modal.getInstance(document.getElementById('quotationDetailModal'))?.hide();
+        loadQuotations(); showToast(res.message, 'success'); }
+    else showToast(res.message, 'danger');
+}
+
+/* ─── Price Recalc ────────────────────────────────────────────── */
+function recalcPrice() {
+    const qty   = parseNum('qQuantity') || 1;
+    const unit  = parseNum('qUnitPrice');
+    const fab   = parseNum('qFabricCost');
+    const acc   = parseNum('qAccessoriesCost');
+    const lab   = parseNum('qLaborCost');
+    const disc  = parseNum('qDiscountAmount');
+    const sub   = unit * qty + fab + acc + lab;
+    const total = Math.max(0, sub - disc);
+    document.getElementById('pbUnitLine').textContent  = fmt(unit * qty);
+    document.getElementById('pbFabric').textContent    = fmt(fab);
+    document.getElementById('pbAccessories').textContent = fmt(acc);
+    document.getElementById('pbLabor').textContent     = fmt(lab);
+    document.getElementById('pbSubtotal').innerHTML    = `<strong>${fmt(sub)}</strong>`;
+    if (disc > 0) {
+        document.getElementById('pbDiscountRow').style.display = '';
+        document.getElementById('pbDiscount').textContent = '– ' + fmt(disc);
+    }
+    document.getElementById('pbTotal').textContent = fmt(total);
+    document.getElementById('pbTotal').dataset.raw = total;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TAB 2 — DEPOSIT & STAFF
+   ═══════════════════════════════════════════════════════════════════════════ */
+function loadOrdersForDeposit() {
+    const depStatus = document.getElementById('filterDepositStatus').value;
+    const url       = `${API}/orders?size=200${depStatus ? '&depositStatus=' + depStatus : ''}`;
+    fetch(url).then(r => r.json()).then(res => {
+        ordersList = res.data?.content ?? res.data ?? [];
+        renderDepositTable(ordersList);
+        // Update pending count stat
+        const pending = ordersList.filter(o => o.depositStatus === 'PENDING').length;
+        document.getElementById('statDepositPending').textContent = pending;
+    }).catch(() => {
+        // Fallback: load all orders
+        fetch(`${API}/orders?size=200`).then(r => r.json()).then(res => {
+            ordersList = res.data?.content ?? res.data ?? [];
+            renderDepositTable(ordersList);
+        }).catch(() => {});
+    });
+}
+
+function filterDepositLocally() {
+    const q = document.getElementById('searchOrderDeposit').value.toLowerCase();
+    renderDepositTable(ordersList.filter(o => (o.orderCode ?? '').toLowerCase().includes(q)));
+}
+
+function renderDepositTable(list) {
+    const tbody = document.getElementById('depositTableBody');
+    if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted">Không có dữ liệu</td></tr>'; return;
+    }
+    tbody.innerHTML = list.map(o => {
+        const depIcon = { NONE: 'fa-lock-open deposit-NONE', PENDING: 'fa-clock deposit-PENDING', CONFIRMED: 'fa-lock deposit-CONFIRMED' }[o.depositStatus ?? 'NONE'];
+        return `<tr>
+            <td><strong>${o.orderCode}</strong></td>
+            <td>${o.customerName ?? '–'}</td>
+            <td class="text-end">${fmt(o.totalPrice)}</td>
+            <td class="text-end">${fmt(o.depositAmount)}</td>
+            <td><i class="fas ${depIcon} me-1"></i>${o.depositStatus ?? 'NONE'}</td>
+            <td><small>${o.depositDate ?? '–'}</small></td>
+            <td><small>${o.primaryStaffName ?? '–'}</small></td>
+            <td><small>${o.secondaryStaffName ?? '–'}</small></td>
+            <td>
+                <button class="btn btn-sm btn-outline-warning py-0" onclick="openDepositModal(${o.id})" title="Đặt cọc & Nhân viên">
+                    <i class="fas fa-coins"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function openDepositModal(orderId) {
+    const res   = await fetch(`${API}/orders/${orderId}`).then(r => r.json());
+    const order = res.data ?? res;
+
+    document.getElementById('depositOrderId').value = orderId;
+    document.getElementById('depositAmount').value  = order.depositAmount ?? 0;
+
+    const statusEl = document.getElementById('depositCurrentStatus');
+    const s = order.depositStatus ?? 'NONE';
+    const statusColors = { NONE:'text-secondary', PENDING:'text-warning', CONFIRMED:'text-success' };
+    statusEl.className = 'fw-bold ' + (statusColors[s] ?? '');
+    statusEl.textContent = s;
+
+    const btnConfirm = document.getElementById('btnConfirmDeposit');
+    btnConfirm.disabled = s === 'CONFIRMED';
+
+    // Staff selects
+    populateStaffSelects(order.primaryStaffId, order.secondaryStaffId);
+
+    // Load existing commissions
+    loadCommissions(orderId);
+
+    new bootstrap.Modal(document.getElementById('depositModal')).show();
+}
+
+function populateStaffSelects(primaryId, secondaryId) {
+    const p = document.getElementById('primaryStaffSelect');
+    const s = document.getElementById('secondaryStaffSelect');
+    p.innerHTML = '<option value="">– Chọn nhân viên –</option>';
+    s.innerHTML = '<option value="">– Không –</option>';
+    staffList.forEach(st => {
+        const opt = `<option value="${st.id}">${st.fullName} (${st.staffRole})</option>`;
+        p.innerHTML += opt;
+        s.innerHTML += opt;
+    });
+    if (primaryId)   p.value = primaryId;
+    if (secondaryId) s.value = secondaryId;
+}
+
+async function confirmDeposit() {
+    const orderId = document.getElementById('depositOrderId').value;
+    const amount  = parseFloat(document.getElementById('depositAmount').value) || 0;
+    const res = await fetch(`${API}/orders/${orderId}/deposit/confirm`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ depositAmount: amount })
+    }).then(r => r.json());
+    if (res.success) {
+        document.getElementById('depositCurrentStatus').textContent = 'CONFIRMED';
+        document.getElementById('depositCurrentStatus').className   = 'fw-bold text-success';
+        document.getElementById('btnConfirmDeposit').disabled = true;
+        loadOrdersForDeposit(); loadStats();
+        showToast('Xác nhận đặt cọc thành công', 'success');
+    } else { showToast(res.message, 'danger'); }
+}
+
+async function assignStaff() {
+    const orderId   = document.getElementById('depositOrderId').value;
+    const primary   = document.getElementById('primaryStaffSelect').value;
+    const secondary = document.getElementById('secondaryStaffSelect').value;
+    const ok = FormValidator.validate('depositModal', [
+        { id: 'primaryStaffSelect', label: 'Nhân viên chính', required: true }
+    ]);
+    if (!ok) return;
+    const body = { primaryStaffId: +primary };
+    if (secondary) body.secondaryStaffId = +secondary;
+    const res = await fetch(`${API}/orders/${orderId}/assign-staff`, {
+        method: 'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+    }).then(r => r.json());
+    if (res.success) {
+        renderCommissions(res.data ?? []);
+        loadOrdersForDeposit();
+        showToast('Phân công thành công — hoa hồng đã được tính', 'success');
+    } else { showToast(res.message, 'danger'); }
+}
+
+async function loadCommissions(orderId) {
+    try {
+        const res = await fetch(`${API}/orders/${orderId}/commissions`).then(r => r.json());
+        renderCommissions(res.data ?? []);
+    } catch(e) {}
+}
+
+function renderCommissions(list) {
+    const container = document.getElementById('commissionCardsContainer');
+    if (!list.length) { container.innerHTML = ''; return; }
+    container.innerHTML = list.map(c => `
+        <div class="col-md-6">
+            <div class="commission-card">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="role-badge-${c.staffRoleType}">${c.staffRoleType === 'PRIMARY' ? 'Chính' : 'Phụ'}</span>
+                    ${c.isManualOverride ? '<span class="badge bg-warning text-dark">Manual</span>' : ''}
+                    ${c.isPaid ? '<span class="badge bg-success">Đã TT</span>' : ''}
+                </div>
+                <div class="fw-bold">${c.staffName}</div>
+                <div class="small text-muted">Tỷ lệ: ${(c.commissionRate * 100).toFixed(2)}%</div>
+                <div class="d-flex justify-content-between align-items-center mt-1">
+                    <span class="text-primary fw-bold">${fmt(c.commissionAmount)}</span>
+                    ${!c.isPaid ? `<button class="btn btn-xs btn-outline-secondary py-0 px-2" onclick="openOverrideModal(${c.id}, ${c.commissionAmount})" title="Điều chỉnh">
+                        <i class="fas fa-edit" style="font-size:11px"></i></button>` : ''}
+                </div>
+                ${c.overrideReason ? `<div class="small text-muted fst-italic mt-1">${c.overrideReason}</div>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function openOverrideModal(commissionId, currentAmount) {
+    document.getElementById('overrideCommissionId').value = commissionId;
+    document.getElementById('overrideAmount').value       = currentAmount;
+    document.getElementById('overrideReason').value       = '';
+    new bootstrap.Modal(document.getElementById('commissionOverrideModal')).show();
+}
+
+async function submitCommissionOverride() {
+    const id     = document.getElementById('overrideCommissionId').value;
+    const amount = parseFloat(document.getElementById('overrideAmount').value);
+    const reason = document.getElementById('overrideReason').value;
+    const ok = FormValidator.validate('commissionOverrideModal', [
+        { id: 'overrideAmount', label: 'Số tiền hoa hồng', required: true, type: 'number', min: 0 },
+        { id: 'overrideReason', label: 'Lý do điều chỉnh',    required: true }
+    ]);
+    if (!ok) return;
+    const res = await fetch(`${API}/commissions/${id}`, {
+        method: 'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ commissionAmount: amount, reason })
+    }).then(r => r.json());
+    if (res.success) {
+        bootstrap.Modal.getInstance(document.getElementById('commissionOverrideModal'))?.hide();
+        // Reload commissions for current order
+        const orderId = document.getElementById('depositOrderId').value;
+        if (orderId) loadCommissions(orderId);
+        showToast('Hoa hồng đã được điều chỉnh', 'success');
+    } else { showToast(res.message, 'danger'); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TAB 3 — AFFILIATES
+   ═══════════════════════════════════════════════════════════════════════════ */
+function loadAffiliates() {
+    fetch(`${API}/affiliates`).then(r => r.json()).then(res => {
+        affiliatesList = res.data ?? [];
+        renderAffiliateTable(affiliatesList);
+        document.getElementById('statAffiliates').textContent = affiliatesList.filter(a => a.isActive).length;
+    }).catch(() => {});
+}
+
+function renderAffiliateTable(list) {
+    const tbody = document.getElementById('affiliateTableBody');
+    if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Không có đối tác</td></tr>'; return;
+    }
+    tbody.innerHTML = list.map(a => `
+        <tr class="${selectedAffId === a.id ? 'table-primary' : ''}" style="cursor:pointer" onclick="selectAffiliate(${a.id})">
+            <td><strong>${a.affiliateCode}</strong></td>
+            <td>${a.companyName} ${!a.isActive ? '<span class="badge bg-secondary">Inactive</span>' : ''}</td>
+            <td class="text-end">${(a.commissionRate * 100).toFixed(1)}%</td>
+            <td class="text-end">${a.totalOrders}</td>
+            <td>
+                <button class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="event.stopPropagation(); openAffiliateModal(${a.id})" title="Sửa">
+                    <i class="fas fa-edit" style="font-size:11px"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function selectAffiliate(id) {
+    selectedAffId = id;
+    const aff = affiliatesList.find(a => a.id === id);
+    document.getElementById('dcAffiliateId').value  = id;
+    document.getElementById('dcAffiliateLabel').textContent = aff ? `— ${aff.companyName}` : '';
+    document.getElementById('btnAddDiscountCode').disabled = false;
+    // Re-render to highlight
+    renderAffiliateTable(affiliatesList);
+    // Load discount codes
+    fetch(`${API}/affiliates/${id}/discount-codes`).then(r => r.json()).then(res => {
+        renderDiscountCodeTable(res.data ?? []);
+    }).catch(() => {});
+}
+
+function renderDiscountCodeTable(list) {
+    const tbody = document.getElementById('discountCodeTableBody');
+    if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-muted">Chưa có mã giảm giá</td></tr>'; return;
+    }
+    tbody.innerHTML = list.map(dc => `
+        <tr>
+            <td><strong>${dc.code}</strong></td>
+            <td><span class="badge ${dc.discountType === 'PERCENT' ? 'bg-info text-dark' : 'bg-warning text-dark'}">${dc.discountType}</span></td>
+            <td class="text-end">${dc.discountType === 'PERCENT' ? dc.discountValue + '%' : fmt(dc.discountValue)}</td>
+            <td><small>${dc.validFrom ?? '–'} → ${dc.validUntil ?? '∞'}</small></td>
+            <td class="text-end">${dc.usedCount}${dc.maxUses ? '/' + dc.maxUses : ''}</td>
+            <td>
+                ${dc.isActive
+                  ? `<span class="badge bg-success">Hoạt động</span>
+                     <button class="btn btn-xs btn-outline-danger py-0 px-1 ms-1" onclick="deactivateDiscountCode(${dc.id})" title="Vô hiệu hoá">
+                         <i class="fas fa-ban" style="font-size:11px"></i></button>`
+                  : '<span class="badge bg-secondary">Đã tắt</span>'}
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openAffiliateModal(id) {
+    const a = id ? affiliatesList.find(x => x.id === id) : null;
+    document.getElementById('affiliateModalTitle').innerHTML =
+        `<i class="fas fa-handshake me-2"></i>${a ? 'Sửa đối tác' : 'Thêm đối tác'}`;
+    document.getElementById('affId').value            = a?.id ?? '';
+    document.getElementById('affCode').value          = a?.affiliateCode ?? '';
+    document.getElementById('affCompanyName').value   = a?.companyName ?? '';
+    document.getElementById('affContactName').value   = a?.contactName ?? '';
+    document.getElementById('affPhone').value         = a?.phone ?? '';
+    document.getElementById('affEmail').value         = a?.email ?? '';
+    document.getElementById('affCommissionRate').value = a ? (a.commissionRate * 100).toFixed(1) : 5;
+    document.getElementById('affNotes').value         = a?.notes ?? '';
+    new bootstrap.Modal(document.getElementById('affiliateModal')).show();
+}
+
+async function saveAffiliate() {
+    const id = document.getElementById('affId').value;
+    const payload = {
+        affiliateCode:  document.getElementById('affCode').value,
+        companyName:    document.getElementById('affCompanyName').value,
+        contactName:    document.getElementById('affContactName').value,
+        phone:          document.getElementById('affPhone').value,
+        email:          document.getElementById('affEmail').value,
+        commissionRate: parseFloat(document.getElementById('affCommissionRate').value) / 100,
+        notes:          document.getElementById('affNotes').value
+    };
+    const ok = FormValidator.validate('affiliateModal', [
+        { id: 'affCompanyName',    label: 'Tên công ty', required: true },
+        { id: 'affEmail',          label: 'Email',       required: false, type: 'email' },
+        { id: 'affCommissionRate', label: 'Tỷ lệ hoa hồng', required: true, type: 'number', min: 0, max: 100 }
+    ]);
+    if (!ok) return;
+    const method = id ? 'PUT' : 'POST';
+    const url    = id ? `${API}/affiliates/${id}` : `${API}/affiliates`;
+    const res = await fetch(url, {method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)}).then(r => r.json());
+    if (res.success) {
+        bootstrap.Modal.getInstance(document.getElementById('affiliateModal'))?.hide();
+        loadAffiliates(); showToast(res.message, 'success');
+    } else { showToast(res.message, 'danger'); }
+}
+
+function openDiscountCodeModal() {
+    document.getElementById('dcCode').value        = '';
+    document.getElementById('dcType').value        = 'PERCENT';
+    document.getElementById('dcValue').value       = '';
+    document.getElementById('dcMaxAmount').value   = '';
+    document.getElementById('dcMinOrder').value    = 0;
+    document.getElementById('dcMaxUses').value     = '';
+    document.getElementById('dcValidFrom').value   = '';
+    document.getElementById('dcValidUntil').value  = '';
+    document.getElementById('dcDescription').value = '';
+    toggleDiscountFields();
+    new bootstrap.Modal(document.getElementById('discountCodeModal')).show();
+}
+
+function toggleDiscountFields() {
+    const isPercent = document.getElementById('dcType').value === 'PERCENT';
+    document.getElementById('dcValueUnit').textContent = isPercent ? '%' : '₫';
+    document.getElementById('dcMaxAmount').closest('.col-md-6').style.opacity = isPercent ? '1' : '0.4';
+    document.getElementById('dcMaxAmount').disabled = !isPercent;
+}
+
+async function saveDiscountCode() {
+    const affId = selectedAffId;
+    const payload = {
+        code:             document.getElementById('dcCode').value.toUpperCase(),
+        discountType:     document.getElementById('dcType').value,
+        discountValue:    parseFloat(document.getElementById('dcValue').value),
+        maxDiscountAmount:parseFloat(document.getElementById('dcMaxAmount').value) || null,
+        minOrderValue:    parseFloat(document.getElementById('dcMinOrder').value) || 0,
+        maxUses:          parseInt(document.getElementById('dcMaxUses').value) || null,
+        validFrom:        document.getElementById('dcValidFrom').value || null,
+        validUntil:       document.getElementById('dcValidUntil').value || null,
+        description:      document.getElementById('dcDescription').value
+    };
+    const ok = FormValidator.validate('discountCodeModal', [
+        { id: 'dcCode',  label: 'Mã giảm giá',   required: true },
+        { id: 'dcValue', label: 'Giá trị giảm', required: true, type: 'number', min: 0.01 }
+    ]);
+    if (!ok) return;
+    const url = affId ? `${API}/affiliates/${affId}/discount-codes` : `${API}/discount-codes`;
+    const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)}).then(r => r.json());
+    if (res.success) {
+        bootstrap.Modal.getInstance(document.getElementById('discountCodeModal'))?.hide();
+        if (affId) selectAffiliate(affId);
+        showToast(res.message, 'success');
+    } else { showToast(res.message, 'danger'); }
+}
+
+async function deactivateDiscountCode(id) {
+    if (!confirm('Vô hiệu hoá mã này?')) return;
+    const res = await fetch(`${API}/discount-codes/${id}/deactivate`, {method:'POST'}).then(r => r.json());
+    if (res.success) { if (selectedAffId) selectAffiliate(selectedAffId); showToast('Đã vô hiệu hóa mã', 'success'); }
+    else showToast(res.message, 'danger');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HELPERS
+   ═══════════════════════════════════════════════════════════════════════════ */
+var fmtVND = new Intl.NumberFormat('vi-VN', {style:'currency', currency:'VND', maximumFractionDigits:0});
+function fmt(n)        { return n != null ? fmtVND.format(n) : '0 ₫'; }
+function parseNum(id)  { return parseFloat(document.getElementById(id)?.value) || 0; }
+function valOrNull(id) { const v = document.getElementById(id)?.value; return v ? +v : null; }
+
+function populateSelect(selectId, list, valKey, labelKey, placeholder) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    sel.innerHTML = `<option value="">${placeholder}</option>`;
+    list.forEach(item => sel.innerHTML += `<option value="${item[valKey]}">${item[labelKey]}</option>`);
+}
+
+function showToast(msg, type = 'info') {
+    if (window.showAppToast) {
+        window.showAppToast(msg, type);
+        return;
+    }
+    const toast = document.createElement('div');
+    const colors = { success:'#198754', danger:'#dc3545', warning:'#ffc107', info:'#0dcaf0' };
+    toast.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 20px;
+        border-radius:8px;color:#fff;font-size:14px;max-width:320px;
+        background:${colors[type] ?? '#343a40'};box-shadow:0 4px 16px rgba(0,0,0,.25)`;
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3500);
+}
+</script>
+</body>
+</html>
