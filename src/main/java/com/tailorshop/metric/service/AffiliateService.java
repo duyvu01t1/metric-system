@@ -112,11 +112,17 @@ public class AffiliateService {
             affiliateRepository.findById(affiliateId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đối tác id=" + affiliateId));
         }
-        if (discountCodeRepository.findByCode(dto.getCode()).isPresent()) {
-            throw new BusinessException("DUPLICATE_DISCOUNT_CODE", "Mã giảm giá đã tồn tại: " + dto.getCode());
+        String code = dto.getCode();
+        if (code == null || code.trim().isEmpty()) {
+            code = generateDiscountCode();
+        } else {
+            code = code.toUpperCase();
+        }
+        if (discountCodeRepository.findByCode(code).isPresent()) {
+            throw new BusinessException("DUPLICATE_DISCOUNT_CODE", "Mã giảm giá đã tồn tại: " + code);
         }
         DiscountCode entity = new DiscountCode();
-        entity.setCode(dto.getCode().toUpperCase());
+        entity.setCode(code);
         entity.setAffiliateId(affiliateId);
         entity.setDiscountType(dto.getDiscountType() != null ? dto.getDiscountType() : "PERCENT");
         entity.setDiscountValue(dto.getDiscountValue());
@@ -277,5 +283,11 @@ public class AffiliateService {
         String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String rnd  = String.format("%04d", new Random().nextInt(10000));
         return "AFF-" + date + "-" + rnd;
+    }
+
+    private String generateDiscountCode() {
+        String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String rnd  = String.format("%04d", new Random().nextInt(10000));
+        return "DISC-" + date + "-" + rnd;
     }
 }

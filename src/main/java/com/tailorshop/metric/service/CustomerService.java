@@ -46,6 +46,11 @@ public class CustomerService {
         customer.setIsActive(true);
         customer.setCreatedAt(LocalDateTime.now());
         
+        // Generate customer code if not provided
+        if (customer.getCustomerCode() == null || customer.getCustomerCode().trim().isEmpty()) {
+            customer.setCustomerCode(generateCustomerCode());
+        }
+        
         Customer saved = customerRepository.save(customer);
         log.info("Customer created with ID: {}", saved.getId());
         
@@ -207,6 +212,7 @@ public class CustomerService {
      */
     private Customer convertToEntity(CustomerDTO customerDTO) {
         Customer customer = new Customer();
+        customer.setCustomerCode(customerDTO.getCustomerCode());
         customer.setFirstName(customerDTO.getFirstName());
         customer.setLastName(customerDTO.getLastName());
         customer.setEmail(customerDTO.getEmail());
@@ -221,5 +227,23 @@ public class CustomerService {
         customer.setGender(customerDTO.getGender());
         customer.setNotes(customerDTO.getNotes());
         return customer;
+    }
+
+    /**
+     * Generate unique customer code
+     * Format: CUST001, CUST002, etc.
+     */
+    private String generateCustomerCode() {
+        // Get the next customer ID (approximate)
+        Long nextId = customerRepository.count() + 1;
+        String code = String.format("CUST%03d", nextId);
+        
+        // Ensure uniqueness
+        while (customerRepository.existsByCustomerCode(code)) {
+            nextId++;
+            code = String.format("CUST%03d", nextId);
+        }
+        
+        return code;
     }
 }

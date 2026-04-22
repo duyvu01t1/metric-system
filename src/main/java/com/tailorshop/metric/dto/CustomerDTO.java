@@ -1,5 +1,6 @@
 package com.tailorshop.metric.dto;
 
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,9 +21,18 @@ public class CustomerDTO {
 
     private Long id;
     private String customerCode;
+    
+    @NotBlank(message = "Họ là bắt buộc")
     private String firstName;
+    
+    @NotBlank(message = "Tên là bắt buộc")
     private String lastName;
+    
+    @NotBlank(message = "Email là bắt buộc")
+    @Email(message = "Email không đúng định dạng")
     private String email;
+    
+    @NotBlank(message = "Số điện thoại là bắt buộc")
     private String phone;
     private String address;
     private String city;

@@ -1,6 +1,7 @@
 package com.tailorshop.metric.config;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -35,6 +36,9 @@ import java.util.List;
 public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
+
+    @Value("${app.security.oauth2.enabled:true}")
+    private boolean oauth2Enabled;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -97,15 +101,28 @@ public class SecurityConfig {
                 ).permitAll()
                 // All other requests require authentication
                 .anyRequest().authenticated()
-            )
-            .oauth2Login()
-            .loginPage("/pages/login")
-            .and()
-            .logout()
-            .logoutUrl("/auth/logout")
-            .logoutSuccessUrl("/pages/login")
-            .clearAuthentication(true)
-            .invalidateHttpSession(true);
+            );
+
+        if (oauth2Enabled) {
+            http.oauth2Login()
+                .loginPage("/pages/login")
+                .and()
+                .logout()
+                .logoutUrl("/auth/logout")
+                .logoutSuccessUrl("/pages/login")
+                .clearAuthentication(true)
+                .invalidateHttpSession(true);
+        } else {
+            http.formLogin()
+                .loginPage("/pages/login")
+                .defaultSuccessUrl("/", true)
+                .and()
+                .logout()
+                .logoutUrl("/auth/logout")
+                .logoutSuccessUrl("/pages/login")
+                .clearAuthentication(true)
+                .invalidateHttpSession(true);
+        }
 
         return http.build();
     }

@@ -120,7 +120,11 @@ public class ChannelService {
 
     private Channel toEntity(ChannelDTO dto) {
         Channel c = new Channel();
-        c.setChannelCode(dto.getChannelCode().toUpperCase().trim());
+        String code = dto.getChannelCode();
+        if (code == null || code.trim().isEmpty()) {
+            throw new BusinessException("INVALID_CHANNEL_CODE", "Channel code is required");
+        }
+        c.setChannelCode(code.toUpperCase().trim());
         c.setDisplayName(dto.getDisplayName());
         c.setIconClass(dto.getIconClass());
         c.setWebhookUrl(dto.getWebhookUrl());

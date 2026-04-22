@@ -5,6 +5,7 @@ import com.tailorshop.metric.dto.MeasurementDTO;
 import com.tailorshop.metric.service.MeasurementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,7 +27,7 @@ public class MeasurementController {
 
     @PostMapping
     @Operation(summary = "Create a new measurement")
-    public ResponseEntity<ApiResponse<?>> createMeasurement(@RequestBody MeasurementDTO dto) {
+    public ResponseEntity<ApiResponse<?>> createMeasurement(@Valid @RequestBody MeasurementDTO dto) {
         try {
             MeasurementDTO created = measurementService.createMeasurement(dto);
             return ResponseEntity.status(HttpStatus.CREATED)
@@ -69,7 +70,7 @@ public class MeasurementController {
     @Operation(summary = "Update a measurement")
     public ResponseEntity<ApiResponse<?>> updateMeasurement(
         @PathVariable Long id,
-        @RequestBody MeasurementDTO dto) {
+        @Valid @RequestBody MeasurementDTO dto) {
         try {
             MeasurementDTO updated = measurementService.updateMeasurement(id, dto);
             return ResponseEntity.ok(ApiResponse.success("Measurement updated successfully", updated));

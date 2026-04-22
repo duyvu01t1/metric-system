@@ -1,5 +1,6 @@
 package com.tailorshop.metric.dto;
 
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,14 +21,26 @@ public class TailoringOrderDTO {
 
     private Long id;
     private String orderCode;
+    
+    @NotNull(message = "Khách hàng là bắt buộc")
     private Long customerId;
+    
     private String customerName;
     private LocalDate orderDate;
     private LocalDate promisedDate;
     private LocalDate completedDate;
+    
+    @NotBlank(message = "Loại đơn hàng là bắt buộc")
     private String orderType;
+    
     private String description;
+    
+    @NotNull(message = "Số lượng là bắt buộc")
+    @Min(value = 1, message = "Số lượng phải >= 1")
     private Integer quantity;
+    
+    @NotNull(message = "Giá đơn vị là bắt buộc")
+    @DecimalMin(value = "0", message = "Giá đơn vị phải >= 0")
     private BigDecimal unitPrice;
     private BigDecimal totalPrice;
     private String status;

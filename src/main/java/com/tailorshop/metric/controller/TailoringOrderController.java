@@ -5,10 +5,12 @@ import com.tailorshop.metric.dto.TailoringOrderDTO;
 import com.tailorshop.metric.service.TailoringOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
  * Tailoring Order Controller
  */
 @RestController
-@RequestMapping("/orders")
+@RequestMapping("/api/orders")
 @RequiredArgsConstructor
 @Tag(name = "Tailoring Orders", description = "Tailoring order management endpoints")
 public class TailoringOrderController {
@@ -26,7 +28,7 @@ public class TailoringOrderController {
 
     @PostMapping
     @Operation(summary = "Create a new order")
-    public ResponseEntity<ApiResponse<?>> createOrder(@RequestBody TailoringOrderDTO dto) {
+    public ResponseEntity<ApiResponse<?>> createOrder(@Valid @RequestBody TailoringOrderDTO dto) {
         try {
             TailoringOrderDTO created = tailoringOrderService.createOrder(dto);
             return ResponseEntity.status(HttpStatus.CREATED)
@@ -41,9 +43,24 @@ public class TailoringOrderController {
     @Operation(summary = "Get all orders")
     public ResponseEntity<ApiResponse<?>> getAllOrders(
         @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size) {
+        @RequestParam(defaultValue = "10") int size,
+        @RequestParam(required = false) Integer limit,
+        @RequestParam(required = false) String sort) {
         try {
-            Pageable pageable = PageRequest.of(page, size);
+            // If limit is provided, use it instead of size
+            int actualSize = limit != null ? limit : size;
+
+            Pageable pageable;
+            if (sort != null && !sort.trim().isEmpty()) {
+                // Parse sort parameter like "orderDate,desc"
+                String[] sortParts = sort.split(",");
+                Sort.Direction direction = sortParts.length > 1 && "desc".equalsIgnoreCase(sortParts[1])
+                    ? Sort.Direction.DESC : Sort.Direction.ASC;
+                pageable = PageRequest.of(page, actualSize, Sort.by(direction, sortParts[0]));
+            } else {
+                pageable = PageRequest.of(page, actualSize);
+            }
+
             Page<TailoringOrderDTO> orders = tailoringOrderService.getAllOrders(pageable);
             return ResponseEntity.ok(ApiResponse.success("Orders retrieved successfully", orders));
         } catch (Exception e) {
@@ -100,7 +117,7 @@ public class TailoringOrderController {
     @Operation(summary = "Update an order")
     public ResponseEntity<ApiResponse<?>> updateOrder(
         @PathVariable Long id,
-        @RequestBody TailoringOrderDTO dto) {
+        @Valid @RequestBody TailoringOrderDTO dto) {
         try {
             TailoringOrderDTO updated = tailoringOrderService.updateOrder(id, dto);
             return ResponseEntity.ok(ApiResponse.success("Order updated successfully", updated));

@@ -1,6 +1,11 @@
 # Development Configuration
 # This profile is used for development without OAuth2 credentials
 
+app:
+  security:
+    oauth2:
+      enabled: false
+
 spring:
   security:
     oauth2:

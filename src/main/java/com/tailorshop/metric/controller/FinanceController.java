@@ -46,7 +46,7 @@ import java.util.Map;
  *   GET    /api/finance/expenses/summary                  — tổng theo danh mục
  */
 @RestController
-@RequestMapping("/finance")
+@RequestMapping("/api/finance")
 @RequiredArgsConstructor
 @Slf4j
 public class FinanceController {

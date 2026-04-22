@@ -3,6 +3,7 @@ package com.tailorshop.metric.controller;
 import com.tailorshop.metric.dto.ApiResponse;
 import com.tailorshop.metric.dto.CustomerDTO;
 import com.tailorshop.metric.service.CustomerService;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -17,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
  * REST API endpoints for customer management
  */
 @RestController
-@RequestMapping("/customers")
+@RequestMapping("/api/customers")
 @Slf4j
 public class CustomerController {
 
@@ -30,7 +31,7 @@ public class CustomerController {
      * @return Created customer
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<CustomerDTO>> createCustomer(@RequestBody CustomerDTO customerDTO) {
+    public ResponseEntity<ApiResponse<CustomerDTO>> createCustomer(@Valid @RequestBody CustomerDTO customerDTO) {
         log.info("Creating new customer");
         CustomerDTO created = customerService.createCustomer(customerDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -92,7 +93,7 @@ public class CustomerController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<CustomerDTO>> updateCustomer(
             @PathVariable Long id,
-            @RequestBody CustomerDTO customerDTO) {
+            @Valid @RequestBody CustomerDTO customerDTO) {
         log.info("Updating customer with ID: {}", id);
         CustomerDTO updated = customerService.updateCustomer(id, customerDTO);
         return ResponseEntity.ok(ApiResponse.success("Customer updated successfully", updated));

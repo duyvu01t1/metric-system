@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
  * User Controller — profile view and edit for the authenticated user
  */
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/users")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Users", description = "User profile management")
