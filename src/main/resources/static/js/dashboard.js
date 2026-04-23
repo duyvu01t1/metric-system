@@ -93,7 +93,9 @@ const dashboardService = new DashboardService();
 
 // Page content cache
 const pageCache = {};
-const loadedPageScripts = new Set();
+const loadedPageScripts = new Set(
+    Array.from(document.querySelectorAll('script[src]')).map(s => s.getAttribute('src'))
+);
 const THEME_STORAGE_KEY = 'metric-dashboard-theme';
 let currentDashboardPage = 'dashboard';
 let latestDashboardStats = null;
@@ -805,11 +807,13 @@ function updateHeaderAvatar(data) {
     const avatarInitials = document.getElementById('userAvatarInitials');
 
     if (data.avatarUrl) {
-        avatarImg.src = data.avatarUrl;
-        avatarImg.style.display = '';
+        if (avatarImg) {
+            avatarImg.src = data.avatarUrl;
+            avatarImg.style.display = '';
+        }
         if (avatarInitials) avatarInitials.style.display = 'none';
     } else {
-        avatarImg.style.display = 'none';
+        if (avatarImg) avatarImg.style.display = 'none';
         if (avatarInitials) {
             avatarInitials.textContent = initials;
             avatarInitials.style.display = 'flex';
