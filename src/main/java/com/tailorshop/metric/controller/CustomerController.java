@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
  * REST API endpoints for customer management
  */
 @RestController
-@RequestMapping("/api/customers")
+@RequestMapping("/customers")
 @Slf4j
 public class CustomerController {
 

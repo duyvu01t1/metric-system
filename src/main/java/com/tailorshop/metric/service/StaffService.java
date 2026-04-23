@@ -7,6 +7,8 @@ import com.tailorshop.metric.entity.CustomerInteraction;
 import com.tailorshop.metric.entity.Lead;
 import com.tailorshop.metric.entity.LeadAssignment;
 import com.tailorshop.metric.entity.Staff;
+import com.tailorshop.metric.entity.User;
+import com.tailorshop.metric.entity.UserRole;
 import com.tailorshop.metric.exception.BusinessException;
 import com.tailorshop.metric.exception.ResourceNotFoundException;
 import com.tailorshop.metric.repository.CustomerInteractionRepository;
@@ -15,23 +17,28 @@ import com.tailorshop.metric.repository.LeadAssignmentRepository;
 import com.tailorshop.metric.repository.LeadRepository;
 import com.tailorshop.metric.repository.StaffRepository;
 import com.tailorshop.metric.repository.UserRepository;
+import com.tailorshop.metric.repository.UserRoleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -54,23 +61,40 @@ public class StaffService {
     @Value("${app.crm.performance-threshold:40.0}")
     private double performanceThreshold;
 
-    private final StaffRepository              staffRepository;
-    private final LeadRepository               leadRepository;
-    private final LeadAssignmentRepository     assignmentRepository;
-    private final CustomerRepository           customerRepository;
+    private final StaffRepository               staffRepository;
+    private final LeadRepository                leadRepository;
+    private final LeadAssignmentRepository      assignmentRepository;
+    private final CustomerRepository            customerRepository;
     private final CustomerInteractionRepository interactionRepository;
-    private final UserRepository               userRepository;
+    private final UserRepository                userRepository;
+    private final UserRoleRepository            userRoleRepository;
+    private final PasswordEncoder               passwordEncoder;
 
     // ─── CRUD Staff ───────────────────────────────────────────────────────────
 
     @Transactional
     public StaffDTO createStaff(StaffDTO dto) {
-        if (dto.getUserId() != null && staffRepository.findByUserId(dto.getUserId()).isPresent()) {
-            throw new BusinessException("STAFF_ALREADY_EXISTS", "User đã có profile nhân viên");
+        // inputUserId là effectively-final để dùng trong lambda
+        final Long inputUserId = dto.getUserId();
+        final Long resolvedUserId;
+
+        if (inputUserId != null) {
+            // Validate userId đã cung cấp tồn tại trong hệ thống
+            userRepository.findById(inputUserId)
+                .orElseThrow(() -> new BusinessException("USER_NOT_FOUND",
+                    "Tài khoản với ID " + inputUserId + " không tồn tại trong hệ thống"));
+            if (staffRepository.findByUserId(inputUserId).isPresent()) {
+                throw new BusinessException("STAFF_ALREADY_EXISTS", "User đã có profile nhân viên");
+            }
+            resolvedUserId = inputUserId;
+        } else {
+            // Auto-tạo tài khoản User mới cho nhân viên này
+            resolvedUserId = autoCreateUserForStaff(dto).getId();
         }
+
         Staff staff = new Staff();
         staff.setStaffCode(generateStaffCode());
-        staff.setUserId(dto.getUserId());
+        staff.setUserId(resolvedUserId);
         staff.setFullName(dto.getFullName().trim());
         staff.setPhone(dto.getPhone());
         staff.setDepartment(dto.getDepartment());
@@ -367,6 +391,68 @@ public class StaffService {
             throw new BusinessException("NO_STAFF", "Không có nhân viên hoạt động để phân công");
         }
         return candidates.get(0);
+    }
+
+    /**
+     * Tự động tạo tài khoản User cho nhân viên mới.
+     * Username: phone (nếu có) hoặc chuỗi chuẩn hoá từ họ tên + suffix nếu trùng.
+     * Password mặc định: TailorShop@2024 (admin nên đổi sau khi tạo).
+     */
+    private User autoCreateUserForStaff(StaffDTO dto) {
+        String baseUsername = (dto.getPhone() != null && !dto.getPhone().isBlank())
+            ? dto.getPhone().replaceAll("[^0-9]", "")
+            : normalizeToUsername(dto.getFullName());
+
+        String username = baseUsername;
+        int suffix = 1;
+        while (userRepository.existsByUsername(username)) {
+            username = baseUsername + suffix++;
+        }
+
+        // Tạo email placeholder nếu không có
+        String email = username + "@tailorshop.local";
+        while (userRepository.existsByEmail(email)) {
+            email = username + System.currentTimeMillis() % 10000 + "@tailorshop.local";
+        }
+
+        User user = new User();
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode("TailorShop@2024"));
+        user.setFirstName(dto.getFullName().contains(" ")
+            ? dto.getFullName().substring(dto.getFullName().lastIndexOf(' ') + 1)
+            : dto.getFullName());
+        user.setLastName(dto.getFullName().contains(" ")
+            ? dto.getFullName().substring(0, dto.getFullName().lastIndexOf(' '))
+            : "");
+        user.setPhone(dto.getPhone());
+        user.setIsActive(true);
+        user.setIsLocked(false);
+        user.setOauthProvider("LOCAL");
+
+        // Gán role STAFF (fallback sang USER nếu chưa có role STAFF)
+        UserRole role = userRoleRepository.findByName("STAFF")
+            .or(() -> userRoleRepository.findByName("USER"))
+            .orElse(null);
+        if (role != null) {
+            Set<UserRole> roles = new HashSet<>();
+            roles.add(role);
+            user.setRoles(roles);
+        }
+
+        User saved = userRepository.save(user);
+        log.info("Auto-created user '{}' for new staff '{}'", saved.getUsername(), dto.getFullName());
+        return saved;
+    }
+
+    /** Chuẩn hoá tên tiếng Việt thành username ASCII lowercase không dấu */
+    private String normalizeToUsername(String name) {
+        if (name == null || name.isBlank()) return "nhanvien";
+        String normalized = Normalizer.normalize(name.trim(), Normalizer.Form.NFD)
+            .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+            .toLowerCase()
+            .replaceAll("[^a-z0-9]", "");
+        return normalized.isBlank() ? "nhanvien" : normalized;
     }
 
     private String generateStaffCode() {

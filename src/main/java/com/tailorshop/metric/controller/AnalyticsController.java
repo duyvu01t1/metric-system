@@ -24,7 +24,7 @@ import java.util.Map;
  * AnalyticsController — Phân hệ 8: Báo cáo & Đánh giá
  */
 @RestController
-@RequestMapping("/api/analytics")
+@RequestMapping("/analytics")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Analytics", description = "Advanced analytics and evaluation endpoints")

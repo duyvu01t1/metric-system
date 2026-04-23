@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -77,6 +78,16 @@ public class UserService {
         log.info("New user registered: {}", savedUser.getUsername());
 
         return convertToDTO(savedUser);
+    }
+
+    /**
+     * List all users (id + username + email) — dùng cho dropdown chọn tài khoản
+     */
+    @Transactional(readOnly = true)
+    public List<UserDTO> getAllUsers() {
+        return userRepository.findAll().stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
     }
 
     /**

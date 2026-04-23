@@ -106,6 +106,7 @@ public class TailoringOrderService {
     /**
      * Get order by ID
      */
+    @Transactional(readOnly = true)
     public TailoringOrderDTO getOrderById(Long id) {
         TailoringOrder order = tailoringOrderRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
@@ -115,6 +116,7 @@ public class TailoringOrderService {
     /**
      * Get all orders with pagination
      */
+    @Transactional(readOnly = true)
     public Page<TailoringOrderDTO> getAllOrders(Pageable pageable) {
         Page<TailoringOrder> orders = tailoringOrderRepository.findAll(pageable);
         List<TailoringOrderDTO> dtos = orders.getContent().stream()
@@ -126,6 +128,7 @@ public class TailoringOrderService {
     /**
      * Get orders by customer ID
      */
+    @Transactional(readOnly = true)
     public Page<TailoringOrderDTO> getOrdersByCustomerId(Long customerId, Pageable pageable) {
         Page<TailoringOrder> orders = tailoringOrderRepository.findByCustomerId(customerId, pageable);
         List<TailoringOrderDTO> dtos = orders.getContent().stream()
@@ -137,6 +140,7 @@ public class TailoringOrderService {
     /**
      * Get orders by status
      */
+    @Transactional(readOnly = true)
     public Page<TailoringOrderDTO> getOrdersByStatus(String status, Pageable pageable) {
         Page<TailoringOrder> orders = tailoringOrderRepository.findByStatus(status, pageable);
         List<TailoringOrderDTO> dtos = orders.getContent().stream()

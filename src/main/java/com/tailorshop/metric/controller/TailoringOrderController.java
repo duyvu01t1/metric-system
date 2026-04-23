@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
  * Tailoring Order Controller
  */
 @RestController
-@RequestMapping("/api/orders")
+@RequestMapping("/orders")
 @RequiredArgsConstructor
 @Tag(name = "Tailoring Orders", description = "Tailoring order management endpoints")
 public class TailoringOrderController {

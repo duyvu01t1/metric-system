@@ -3,6 +3,7 @@ package com.tailorshop.metric.controller;
 import com.tailorshop.metric.dto.ApiResponse;
 import com.tailorshop.metric.dto.ExpenseDTO;
 import com.tailorshop.metric.dto.StaffCommissionDTO;
+import com.tailorshop.metric.repository.UserRepository;
 import com.tailorshop.metric.service.FinanceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -46,12 +48,21 @@ import java.util.Map;
  *   GET    /api/finance/expenses/summary                  — tổng theo danh mục
  */
 @RestController
-@RequestMapping("/api/finance")
+@RequestMapping("/finance")
 @RequiredArgsConstructor
 @Slf4j
 public class FinanceController {
 
     private final FinanceService financeService;
+    private final UserRepository userRepository;
+
+    /** Lấy userId của người đang đăng nhập; nếu không resolve được trả về null */
+    private Long currentUserId(Authentication auth) {
+        if (auth == null) return null;
+        return userRepository.findByUsername(auth.getName())
+            .map(u -> u.getId())
+            .orElse(null);
+    }
 
     // ════════════════════════════════════════════════════════════════════════
     // OVERVIEW
@@ -77,9 +88,10 @@ public class FinanceController {
     @PostMapping("/commissions/calculate/{orderId}")
     public ResponseEntity<ApiResponse<List<StaffCommissionDTO>>> calculateCommissions(
             @PathVariable Long orderId,
-            @RequestBody(required = false) Map<String, Object> body) {
-        Long userId = body != null && body.containsKey("userId")
-            ? Long.valueOf(body.get("userId").toString()) : 1L;
+            @RequestBody(required = false) Map<String, Object> body,
+            Authentication authentication) {
+        Long userId = (body != null && body.containsKey("userId"))
+            ? Long.valueOf(body.get("userId").toString()) : currentUserId(authentication);
         List<StaffCommissionDTO> result = financeService.calculateCommissionsForOrder(orderId, userId);
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(ApiResponse.success("Đã tính " + result.size() + " hoa hồng cho đơn #" + orderId, result));
@@ -136,12 +148,14 @@ public class FinanceController {
     @PutMapping("/commissions/{id}/override")
     public ResponseEntity<ApiResponse<StaffCommissionDTO>> overrideCommission(
             @PathVariable Long id,
-            @RequestBody Map<String, Object> body) {
+            @RequestBody Map<String, Object> body,
+            Authentication authentication) {
         BigDecimal amount = new BigDecimal(body.getOrDefault("amount", "0").toString());
         String reason     = (String) body.getOrDefault("reason", null);
         Long stageId      = body.containsKey("productionStageId")
             ? Long.valueOf(body.get("productionStageId").toString()) : null;
-        Long userId       = body.containsKey("userId") ? Long.valueOf(body.get("userId").toString()) : 1L;
+        Long userId       = body.containsKey("userId")
+            ? Long.valueOf(body.get("userId").toString()) : currentUserId(authentication);
         return ResponseEntity.ok(ApiResponse.success("Đã cập nhật hoa hồng",
             financeService.overrideCommission(id, amount, reason, stageId, userId)));
     }
@@ -153,9 +167,10 @@ public class FinanceController {
     @PutMapping("/commissions/{id}/mark-paid")
     public ResponseEntity<ApiResponse<StaffCommissionDTO>> markPaid(
             @PathVariable Long id,
-            @RequestBody(required = false) Map<String, Object> body) {
-        Long userId = body != null && body.containsKey("userId")
-            ? Long.valueOf(body.get("userId").toString()) : 1L;
+            @RequestBody(required = false) Map<String, Object> body,
+            Authentication authentication) {
+        Long userId = (body != null && body.containsKey("userId"))
+            ? Long.valueOf(body.get("userId").toString()) : currentUserId(authentication);
         return ResponseEntity.ok(ApiResponse.success("Đã xác nhận thanh toán hoa hồng",
             financeService.markPaid(id, userId)));
     }
@@ -166,11 +181,13 @@ public class FinanceController {
      */
     @PutMapping("/commissions/bulk-mark-paid")
     public ResponseEntity<ApiResponse<Map<String, Object>>> bulkMarkPaid(
-            @RequestBody Map<String, Object> body) {
+            @RequestBody Map<String, Object> body,
+            Authentication authentication) {
         @SuppressWarnings("unchecked")
         List<Object> rawIds = (List<Object>) body.getOrDefault("ids", List.of());
         List<Long> ids = rawIds.stream().map(o -> Long.valueOf(o.toString())).toList();
-        Long userId = body.containsKey("userId") ? Long.valueOf(body.get("userId").toString()) : 1L;
+        Long userId = body.containsKey("userId")
+            ? Long.valueOf(body.get("userId").toString()) : currentUserId(authentication);
         int count = financeService.markPaidBulk(ids, userId);
         return ResponseEntity.ok(ApiResponse.success("Đã thanh toán " + count + " hoa hồng",
             Map.of("paid", count)));
@@ -183,7 +200,8 @@ public class FinanceController {
     @PostMapping("/expenses")
     public ResponseEntity<ApiResponse<ExpenseDTO>> createExpense(
             @RequestBody ExpenseDTO dto,
-            @RequestParam(defaultValue = "1") Long userId) {
+            Authentication authentication) {
+        Long userId = currentUserId(authentication);
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(ApiResponse.success("Đã tạo chi phí " + dto.getTitle(),
                 financeService.createExpense(dto, userId)));
@@ -209,7 +227,8 @@ public class FinanceController {
     public ResponseEntity<ApiResponse<ExpenseDTO>> updateExpense(
             @PathVariable Long id,
             @RequestBody ExpenseDTO dto,
-            @RequestParam(defaultValue = "1") Long userId) {
+            Authentication authentication) {
+        Long userId = currentUserId(authentication);
         return ResponseEntity.ok(ApiResponse.success("Đã cập nhật chi phí",
             financeService.updateExpense(id, dto, userId)));
     }
@@ -223,7 +242,8 @@ public class FinanceController {
     @PutMapping("/expenses/{id}/approve")
     public ResponseEntity<ApiResponse<ExpenseDTO>> approveExpense(
             @PathVariable Long id,
-            @RequestParam(defaultValue = "1") Long userId) {
+            Authentication authentication) {
+        Long userId = currentUserId(authentication);
         return ResponseEntity.ok(ApiResponse.success("Đã duyệt chi phí",
             financeService.approveExpense(id, userId)));
     }
@@ -231,9 +251,11 @@ public class FinanceController {
     @PutMapping("/expenses/{id}/reject")
     public ResponseEntity<ApiResponse<ExpenseDTO>> rejectExpense(
             @PathVariable Long id,
-            @RequestBody Map<String, Object> body) {
+            @RequestBody Map<String, Object> body,
+            Authentication authentication) {
         String reason = (String) body.getOrDefault("reason", null);
-        Long userId   = body.containsKey("userId") ? Long.valueOf(body.get("userId").toString()) : 1L;
+        Long userId   = body.containsKey("userId")
+            ? Long.valueOf(body.get("userId").toString()) : currentUserId(authentication);
         return ResponseEntity.ok(ApiResponse.success("Đã từ chối chi phí",
             financeService.rejectExpense(id, reason, userId)));
     }

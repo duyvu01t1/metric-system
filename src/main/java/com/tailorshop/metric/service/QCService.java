@@ -254,6 +254,7 @@ public class QCService {
      * Kiểm tra đơn hàng có phiếu QC đã PASSED không.
      * Phải gọi trước khi tạo Delivery.
      */
+    @Transactional(readOnly = true)
     public void assertQCPassed(Long orderId) {
         boolean passed = qcCheckRepository.existsByOrderIdAndStatus(orderId, "PASSED");
         if (!passed) {
@@ -264,6 +265,7 @@ public class QCService {
 
     // ─── Đọc dữ liệu QC ──────────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public QCCheckDTO getQCCheckById(Long qcId) {
         QCCheck qc = findQcCheck(qcId);
         TailoringOrder order = findOrder(qc.getOrderId());
@@ -271,6 +273,7 @@ public class QCService {
         return convertCheckToDTO(qc, order, items);
     }
 
+    @Transactional(readOnly = true)
     public List<QCCheckDTO> getQCChecksByOrder(Long orderId) {
         TailoringOrder order = findOrder(orderId);
         return qcCheckRepository.findByOrderIdOrderByCheckRoundDesc(orderId)
@@ -280,6 +283,7 @@ public class QCService {
             .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public Page<QCCheckDTO> listQCChecks(String status, Pageable pageable) {
         Page<QCCheck> page = (status != null && !status.isBlank())
             ? qcCheckRepository.findByStatus(status, pageable)
@@ -293,6 +297,7 @@ public class QCService {
         return new PageImpl<>(dtos, pageable, page.getTotalElements());
     }
 
+    @Transactional(readOnly = true)
     public Map<String, Long> getQCOverview() {
         return Map.of(
             "PENDING",     qcCheckRepository.countByStatus("PENDING"),
@@ -475,18 +480,21 @@ public class QCService {
 
     // ─── Đọc dữ liệu Delivery ────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public DeliveryDTO getDeliveryById(Long id) {
         Delivery d = findDelivery(id);
         TailoringOrder order = findOrder(d.getOrderId());
         return convertDeliveryToDTO(d, order);
     }
 
+    @Transactional(readOnly = true)
     public List<DeliveryDTO> getDeliveriesByOrder(Long orderId) {
         TailoringOrder order = findOrder(orderId);
         return deliveryRepository.findByOrderIdOrderByCreatedAtDesc(orderId)
             .stream().map(d -> convertDeliveryToDTO(d, order)).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public Page<DeliveryDTO> listDeliveries(String status, Pageable pageable) {
         Page<Delivery> page = (status != null && !status.isBlank())
             ? deliveryRepository.findByStatus(status, pageable)
@@ -497,6 +505,7 @@ public class QCService {
         return new PageImpl<>(dtos, pageable, page.getTotalElements());
     }
 
+    @Transactional(readOnly = true)
     public List<DeliveryDTO> getTodayPendingDeliveries() {
         return deliveryRepository.findTodayPending(LocalDate.now())
             .stream()
@@ -504,6 +513,7 @@ public class QCService {
             .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public Map<String, Long> getDeliveryOverview() {
         return Map.of(
             "SCHEDULED",        deliveryRepository.countByStatus("SCHEDULED"),

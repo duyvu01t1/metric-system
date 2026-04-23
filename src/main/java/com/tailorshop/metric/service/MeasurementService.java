@@ -73,6 +73,7 @@ public class MeasurementService {
     /**
      * Get measurement by ID
      */
+    @Transactional(readOnly = true)
     public MeasurementDTO getMeasurementById(Long id) {
         Measurement measurement = measurementRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Measurement not found"));
@@ -80,8 +81,21 @@ public class MeasurementService {
     }
 
     /**
+     * Get all measurements with pagination — dùng cho màn hình danh sách tổng hợp
+     */
+    @Transactional(readOnly = true)
+    public Page<MeasurementDTO> getAllMeasurements(Pageable pageable) {
+        Page<Measurement> measurements = measurementRepository.findAll(pageable);
+        List<MeasurementDTO> dtos = measurements.getContent().stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+        return new PageImpl<>(dtos, pageable, measurements.getTotalElements());
+    }
+
+    /**
      * Get measurements by order ID
      */
+    @Transactional(readOnly = true)
     public Page<MeasurementDTO> getMeasurementsByOrderId(Long orderId, Pageable pageable) {
         Page<Measurement> measurements = measurementRepository.findByTailoringOrderId(orderId, pageable);
         List<MeasurementDTO> dtos = measurements.getContent().stream()

@@ -319,13 +319,13 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="staffId">
+                <div id="staffAutoAccountInfo" class="alert alert-info alert-sm py-2 d-none" role="alert">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Tài khoản đăng nhập sẽ được <strong>tự động tạo</strong> từ số điện thoại (hoặc tên nhân viên).
+                    Mật khẩu mặc định: <code>TailorShop@2024</code>
+                </div>
                 <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Tài khoản User ID</label>
-                        <input type="number" class="form-control form-control-sm" id="staffUserId"
-                               placeholder="ID tài khoản đăng nhập (tùy chọn)">
-                    </div>
-                    <div class="col-md-6">
+                    <div class="col-md-12">
                         <label class="form-label">Họ và tên <span class="text-danger">*</span></label>
                         <input type="text" class="form-control form-control-sm" id="staffFullName"
                                placeholder="Nguyễn Văn A">
@@ -636,10 +636,10 @@ function renderStaffPagination(page) {
 // ─── Staff Modal (Create/Edit) ────────────────────────────────────────────
 function showCreateStaffModal() {
     document.getElementById('staffId').value = '';
-    document.getElementById('staffUserId').value = '';
     document.getElementById('staffFullName').value = '';
     document.getElementById('staffPhone').value = '';
     document.getElementById('staffDepartment').value = '';
+    document.getElementById('staffAutoAccountInfo').classList.remove('d-none');
     document.getElementById('staffRole').value = 'SALE';
     document.getElementById('staffMonthlyTarget').value = '';
     document.getElementById('staffCommissionRate').value = '5.00';
@@ -653,7 +653,7 @@ function editStaff(id) {
     const s = staffData.find(x => x.id === id);
     if (!s) return;
     document.getElementById('staffId').value = s.id;
-    document.getElementById('staffUserId').value = s.userId || '';
+    document.getElementById('staffAutoAccountInfo').classList.add('d-none');
     document.getElementById('staffFullName').value = s.fullName;
     document.getElementById('staffPhone').value = s.phone || '';
     document.getElementById('staffDepartment').value = s.department || '';
@@ -671,7 +671,6 @@ function saveStaff() {
     const id = document.getElementById('staffId').value;
     const commRate = parseFloat(document.getElementById('staffCommissionRate').value || 5) / 100;
     const payload = {
-        userId: document.getElementById('staffUserId').value || null,
         fullName: document.getElementById('staffFullName').value.trim(),
         phone: document.getElementById('staffPhone').value.trim(),
         department: document.getElementById('staffDepartment').value.trim(),
@@ -686,7 +685,7 @@ function saveStaff() {
         { id: 'staffRole',     label: 'Chức vụ', required: true }
     ]);
     if (!ok) return;
-    const url  = id ? CRM_API + `/staff/${id}` : CRM_API + '/staff';
+    const url    = id ? CRM_API + `/staff/${id}` : CRM_API + '/staff';
     const method = id ? 'PUT' : 'POST';
     $.ajax({ url, method, contentType: 'application/json', data: JSON.stringify(payload) })
         .done(r => {
@@ -695,6 +694,10 @@ function saveStaff() {
                 loadStaffTable(staffPage);
                 loadStats();
                 loadStaffForSelects();
+                // Thông báo tài khoản tự động khi tạo mới
+                if (!id && r.data && r.data.username) {
+                    alert(`✅ Nhân viên đã được tạo!\nTài khoản đăng nhập: ${r.data.username}\nMật khẩu mặc định: TailorShop@2024\nVui lòng đổi mật khẩu sau khi đăng nhập lần đầu.`);
+                }
             } else alert(r.message || 'Lỗi khi lưu');
         });
 }

@@ -5,6 +5,7 @@ import com.tailorshop.metric.dto.ChangePasswordRequest;
 import com.tailorshop.metric.dto.UserDTO;
 import com.tailorshop.metric.dto.UserProfileUpdateRequest;
 import com.tailorshop.metric.service.UserService;
+import java.util.List;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -18,13 +19,22 @@ import org.springframework.web.bind.annotation.*;
  * User Controller — profile view and edit for the authenticated user
  */
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/users")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Users", description = "User profile management")
 public class UserController {
 
     private final UserService userService;
+
+    /**
+     * List all users — dùng để populate dropdown chọn tài khoản khi tạo nhân viên
+     */
+    @GetMapping
+    @Operation(summary = "List all users")
+    public ResponseEntity<ApiResponse<List<UserDTO>>> getAllUsers() {
+        return ResponseEntity.ok(ApiResponse.success("OK", userService.getAllUsers()));
+    }
 
     /**
      * Get current logged-in user profile

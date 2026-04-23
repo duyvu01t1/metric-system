@@ -105,8 +105,9 @@ public class SettingsController {
     @Operation(summary = "Update setting by key")
     public ResponseEntity<ApiResponse<SettingsDTO>> updateSettingByKey(
             @PathVariable String key,
-            @RequestParam String value) {
+            @RequestBody java.util.Map<String, String> body) {
         log.info("Updating setting by key: {}", key);
+        String value = body.getOrDefault("settingValue", body.getOrDefault("value", ""));
         SettingsDTO updated = settingsService.updateSettingByKey(key, value);
         return ResponseEntity.ok(ApiResponse.success("Setting updated successfully", updated));
     }

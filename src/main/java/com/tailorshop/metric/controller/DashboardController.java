@@ -18,7 +18,7 @@ import java.util.Map;
  * REST API endpoints for dashboard data
  */
 @RestController
-@RequestMapping("/api/dashboard")
+@RequestMapping("/dashboard")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Dashboard", description = "Dashboard data endpoints")

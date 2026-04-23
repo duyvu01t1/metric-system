@@ -25,12 +25,10 @@ public class MeasurementDTO {
     
     private String orderCode;
     
-    @NotNull(message = "Template đo lường là bắt buộc")
     private Long measurementTemplateId;
-    
-    @NotNull(message = "Trường đo lường là bắt buộc")
+
     private Long fieldId;
-    
+
     private String fieldName;
     
     @NotNull(message = "Giá trị đo lường là bắt buộc")

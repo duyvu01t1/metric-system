@@ -25,6 +25,21 @@ public class MeasurementController {
 
     private final MeasurementService measurementService;
 
+    @GetMapping
+    @Operation(summary = "Get all measurements")
+    public ResponseEntity<ApiResponse<?>> getAllMeasurements(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "20") int size) {
+        try {
+            Pageable pageable = PageRequest.of(page, size);
+            Page<MeasurementDTO> measurements = measurementService.getAllMeasurements(pageable);
+            return ResponseEntity.ok(ApiResponse.success("Measurements retrieved successfully", measurements));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error("FETCH_FAILED", e.getMessage()));
+        }
+    }
+
     @PostMapping
     @Operation(summary = "Create a new measurement")
     public ResponseEntity<ApiResponse<?>> createMeasurement(@Valid @RequestBody MeasurementDTO dto) {
