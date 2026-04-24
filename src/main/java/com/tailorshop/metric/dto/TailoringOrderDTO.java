@@ -31,8 +31,12 @@ public class TailoringOrderDTO {
     private Long customerId;
     
     private String customerName;
-    private LocalDate orderDate;
-    private LocalDate promisedDate;
+    private String customerPhone;       // SỐ ĐIỆN THOẠI
+    private String customerCountry;     // QUỐC GIA
+
+    private LocalDate orderDate;        // NGÀY ĐẶT HÀNG
+    private LocalDate tryOnDate;        // NGÀY THỬ
+    private LocalDate promisedDate;     // NGÀY NHẬN
     private LocalDate completedDate;
     
     private String orderType;
@@ -43,6 +47,7 @@ public class TailoringOrderDTO {
 
     private BigDecimal unitPrice;
     private BigDecimal totalPrice;
+    private BigDecimal remainingAmount; // CÒN LẠI = totalPrice - depositAmount
     private String status;
     private String paymentStatus;
     private String notes;

@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -23,6 +24,25 @@ public interface TailoringOrderRepository extends JpaRepository<TailoringOrder, 
 
     @Query("SELECT COALESCE(MAX(t.orderNumber), 9999) FROM TailoringOrder t")
     Long findMaxOrderNumber();
+
+    /**
+     * Tìm kiếm theo SỐ BIÊN LẠI / HỌ TÊN KHÁCH HÀNG / SỐ ĐIỆN THOẠI.
+     * Tất cả params đều optional — truyền null để bỏ qua điều kiện đó.
+     */
+    @Query("""
+        SELECT t FROM TailoringOrder t JOIN t.customer c
+        WHERE t.isArchived = false
+          AND (:orderNumber IS NULL OR CAST(t.orderNumber AS string) LIKE %:orderNumber%)
+          AND (:customerName IS NULL
+               OR LOWER(CONCAT(c.firstName, ' ', c.lastName)) LIKE LOWER(CONCAT('%', :customerName, '%')))
+          AND (:phone IS NULL OR c.phone LIKE %:phone%)
+        """)
+    Page<TailoringOrder> search(
+        @Param("orderNumber") String orderNumber,
+        @Param("customerName") String customerName,
+        @Param("phone") String phone,
+        Pageable pageable
+    );
 
     Page<TailoringOrder> findByCustomerId(Long customerId, Pageable pageable);
 

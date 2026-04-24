@@ -20,6 +20,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -39,6 +40,8 @@ public class TailoringOrderService {
     private final ChannelRepository        channelRepository;
     private final DiscountCodeRepository   discountCodeRepository;
 
+    // ── CRUD ─────────────────────────────────────────────────────────────────
+
     @Transactional
     public TailoringOrderDTO createOrder(TailoringOrderDTO dto) {
         Customer customer = customerRepository.findById(dto.getCustomerId())
@@ -49,6 +52,7 @@ public class TailoringOrderService {
         order.setOrderCode(generateOrderCode());
         order.setCustomer(customer);
         order.setOrderDate(dto.getOrderDate() != null ? dto.getOrderDate() : LocalDate.now());
+        order.setTryOnDate(dto.getTryOnDate());
         order.setPromisedDate(dto.getPromisedDate());
         order.setOrderType(dto.getOrderType() != null ? dto.getOrderType() : "CUSTOM");
         order.setDescription(dto.getDescription());
@@ -60,17 +64,17 @@ public class TailoringOrderService {
         order.setFabricColor(dto.getFabricColor());
         order.setAccessories(dto.getAccessories());
         order.setSourceChannelId(dto.getSourceChannelId());
+        order.setDepositAmount(dto.getDepositAmount() != null ? dto.getDepositAmount() : BigDecimal.ZERO);
         order.setDepositStatus(dto.getDepositStatus() != null ? dto.getDepositStatus() : "NONE");
+        order.setPrimaryStaffId(dto.getPrimaryStaffId());
+        order.setSecondaryStaffId(dto.getSecondaryStaffId());
 
-        // Xử lý order items
         List<OrderItem> items = buildItems(dto.getItems(), order);
         order.getItems().addAll(items);
-
-        // Tính tổng tiền từ items
         recalculateTotals(order);
 
         TailoringOrder saved = tailoringOrderRepository.save(order);
-        log.info("Order created: {} (số biên lại: {})", saved.getOrderCode(), saved.getOrderNumber());
+        log.info("Order created: {} (SBL: {})", saved.getOrderCode(), saved.getOrderNumber());
         return convertToDTO(saved);
     }
 
@@ -79,22 +83,26 @@ public class TailoringOrderService {
         TailoringOrder order = tailoringOrderRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
+        if (dto.getOrderDate() != null)     order.setOrderDate(dto.getOrderDate());
+        order.setTryOnDate(dto.getTryOnDate());
         order.setPromisedDate(dto.getPromisedDate());
-        order.setOrderType(dto.getOrderType() != null ? dto.getOrderType() : order.getOrderType());
+        if (dto.getOrderType() != null)     order.setOrderType(dto.getOrderType());
         order.setDescription(dto.getDescription());
-        order.setStatus(dto.getStatus() != null ? dto.getStatus() : order.getStatus());
-        order.setPaymentStatus(dto.getPaymentStatus() != null ? dto.getPaymentStatus() : order.getPaymentStatus());
+        if (dto.getStatus() != null)        order.setStatus(dto.getStatus());
+        if (dto.getPaymentStatus() != null) order.setPaymentStatus(dto.getPaymentStatus());
         order.setNotes(dto.getNotes());
         order.setFabricMaterial(dto.getFabricMaterial());
         order.setFabricColor(dto.getFabricColor());
         order.setAccessories(dto.getAccessories());
         order.setSourceChannelId(dto.getSourceChannelId());
+        if (dto.getDepositAmount() != null) order.setDepositAmount(dto.getDepositAmount());
+        if (dto.getDepositStatus() != null) order.setDepositStatus(dto.getDepositStatus());
+        if (dto.getPrimaryStaffId() != null)   order.setPrimaryStaffId(dto.getPrimaryStaffId());
+        if (dto.getSecondaryStaffId() != null) order.setSecondaryStaffId(dto.getSecondaryStaffId());
 
-        // Thay thế toàn bộ items
         if (dto.getItems() != null) {
             order.getItems().clear();
-            List<OrderItem> newItems = buildItems(dto.getItems(), order);
-            order.getItems().addAll(newItems);
+            order.getItems().addAll(buildItems(dto.getItems(), order));
             recalculateTotals(order);
         }
 
@@ -112,29 +120,30 @@ public class TailoringOrderService {
 
     @Transactional(readOnly = true)
     public Page<TailoringOrderDTO> getAllOrders(Pageable pageable) {
-        Page<TailoringOrder> orders = tailoringOrderRepository.findAll(pageable);
-        List<TailoringOrderDTO> dtos = orders.getContent().stream()
-            .map(this::convertToDTO)
-            .collect(Collectors.toList());
-        return new PageImpl<>(dtos, pageable, orders.getTotalElements());
+        return toPage(tailoringOrderRepository.findAll(pageable), pageable);
+    }
+
+    /**
+     * Search theo SỐ BIÊN LẠI / HỌ TÊN / SỐ ĐIỆN THOẠI.
+     * Nếu cả 3 đều rỗng → trả về tất cả đơn chưa archive.
+     */
+    @Transactional(readOnly = true)
+    public Page<TailoringOrderDTO> searchOrders(String orderNumber, String customerName,
+                                                 String phone, Pageable pageable) {
+        String qNum  = StringUtils.hasText(orderNumber)  ? orderNumber.trim()  : null;
+        String qName = StringUtils.hasText(customerName) ? customerName.trim() : null;
+        String qPhone= StringUtils.hasText(phone)        ? phone.trim()        : null;
+        return toPage(tailoringOrderRepository.search(qNum, qName, qPhone, pageable), pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<TailoringOrderDTO> getOrdersByCustomerId(Long customerId, Pageable pageable) {
-        Page<TailoringOrder> orders = tailoringOrderRepository.findByCustomerId(customerId, pageable);
-        List<TailoringOrderDTO> dtos = orders.getContent().stream()
-            .map(this::convertToDTO)
-            .collect(Collectors.toList());
-        return new PageImpl<>(dtos, pageable, orders.getTotalElements());
+        return toPage(tailoringOrderRepository.findByCustomerId(customerId, pageable), pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<TailoringOrderDTO> getOrdersByStatus(String status, Pageable pageable) {
-        Page<TailoringOrder> orders = tailoringOrderRepository.findByStatus(status, pageable);
-        List<TailoringOrderDTO> dtos = orders.getContent().stream()
-            .map(this::convertToDTO)
-            .collect(Collectors.toList());
-        return new PageImpl<>(dtos, pageable, orders.getTotalElements());
+        return toPage(tailoringOrderRepository.findByStatus(status, pageable), pageable);
     }
 
     @Transactional
@@ -155,23 +164,29 @@ public class TailoringOrderService {
         }
     }
 
-    // ── helpers ──────────────────────────────────────────────────────────────
+    // ── helpers ───────────────────────────────────────────────────────────────
+
+    private Page<TailoringOrderDTO> toPage(Page<TailoringOrder> page, Pageable pageable) {
+        List<TailoringOrderDTO> dtos = page.getContent().stream()
+            .map(this::convertToDTO).collect(Collectors.toList());
+        return new PageImpl<>(dtos, pageable, page.getTotalElements());
+    }
 
     private List<OrderItem> buildItems(List<OrderItemDTO> dtos, TailoringOrder order) {
         if (dtos == null || dtos.isEmpty()) return new ArrayList<>();
         List<OrderItem> result = new ArrayList<>();
         for (int i = 0; i < dtos.size(); i++) {
             OrderItemDTO d = dtos.get(i);
+            if (d.getProductName() == null || d.getUnitPrice() == null) continue;
             OrderItem item = new OrderItem();
             item.setOrder(order);
             item.setProductName(d.getProductName());
             item.setProductCode(d.getProductCode());
             item.setFabricMeters(d.getFabricMeters());
-            item.setQuantity(d.getQuantity() != null ? d.getQuantity() : 1);
+            int qty = d.getQuantity() != null ? d.getQuantity() : 1;
+            item.setQuantity(qty);
             item.setUnitPrice(d.getUnitPrice());
-            BigDecimal total = d.getUnitPrice()
-                .multiply(BigDecimal.valueOf(item.getQuantity()));
-            item.setTotalPrice(total);
+            item.setTotalPrice(d.getUnitPrice().multiply(BigDecimal.valueOf(qty)));
             item.setSortOrder(d.getSortOrder() != null ? d.getSortOrder() : i);
             result.add(item);
         }
@@ -186,14 +201,10 @@ public class TailoringOrderService {
             return;
         }
         BigDecimal total = order.getItems().stream()
-            .map(OrderItem::getTotalPrice)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-        int qty = order.getItems().stream()
-            .mapToInt(OrderItem::getQuantity)
-            .sum();
+            .map(OrderItem::getTotalPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+        int qty = order.getItems().stream().mapToInt(OrderItem::getQuantity).sum();
         order.setTotalPrice(total);
         order.setQuantity(qty);
-        // unitPrice không còn có nghĩa khi có nhiều sản phẩm — giữ tổng
         order.setUnitPrice(total);
     }
 
@@ -207,10 +218,11 @@ public class TailoringOrderService {
     }
 
     private TailoringOrderDTO convertToDTO(TailoringOrder order) {
+        Customer c = order.getCustomer();
         String channelName = order.getSourceChannelId() != null
             ? channelRepository.findById(order.getSourceChannelId())
                 .map(ch -> ch.getDisplayName()).orElse(null) : null;
-        String discountCode = order.getDiscountCodeId() != null
+        String discountCodeStr = order.getDiscountCodeId() != null
             ? discountCodeRepository.findById(order.getDiscountCodeId())
                 .map(DiscountCode::getCode).orElse(null) : null;
         String primaryStaffName = order.getPrimaryStaffId() != null
@@ -220,6 +232,9 @@ public class TailoringOrderService {
             ? staffRepository.findById(order.getSecondaryStaffId())
                 .map(s -> s.getFullName()).orElse(null) : null;
 
+        BigDecimal total   = order.getTotalPrice()   != null ? order.getTotalPrice()   : BigDecimal.ZERO;
+        BigDecimal deposit = order.getDepositAmount() != null ? order.getDepositAmount(): BigDecimal.ZERO;
+
         List<OrderItemDTO> itemDTOs = order.getItems() == null ? new ArrayList<>()
             : order.getItems().stream().map(this::convertItemToDTO).collect(Collectors.toList());
 
@@ -227,16 +242,20 @@ public class TailoringOrderService {
             .id(order.getId())
             .orderNumber(order.getOrderNumber())
             .orderCode(order.getOrderCode())
-            .customerId(order.getCustomer().getId())
-            .customerName(order.getCustomer().getFirstName() + " " + order.getCustomer().getLastName())
+            .customerId(c.getId())
+            .customerName(c.getFirstName() + " " + c.getLastName())
+            .customerPhone(c.getPhone())
+            .customerCountry(c.getCountry())
             .orderDate(order.getOrderDate())
+            .tryOnDate(order.getTryOnDate())
             .promisedDate(order.getPromisedDate())
             .completedDate(order.getCompletedDate())
             .orderType(order.getOrderType())
             .description(order.getDescription())
             .quantity(order.getQuantity())
             .unitPrice(order.getUnitPrice())
-            .totalPrice(order.getTotalPrice())
+            .totalPrice(total)
+            .remainingAmount(total.subtract(deposit))
             .status(order.getStatus())
             .paymentStatus(order.getPaymentStatus())
             .notes(order.getNotes())
@@ -248,9 +267,9 @@ public class TailoringOrderService {
             .sourceChannelName(channelName)
             .quotationId(order.getQuotationId())
             .discountCodeId(order.getDiscountCodeId())
-            .discountCode(discountCode)
+            .discountCode(discountCodeStr)
             .discountAmount(order.getDiscountAmount())
-            .depositAmount(order.getDepositAmount())
+            .depositAmount(deposit)
             .depositStatus(order.getDepositStatus())
             .depositDate(order.getDepositDate())
             .depositConfirmedBy(order.getDepositConfirmedBy())

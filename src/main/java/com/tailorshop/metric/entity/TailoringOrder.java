@@ -48,7 +48,10 @@ public class TailoringOrder {
     private LocalDate orderDate;
 
     @Column
-    private LocalDate promisedDate;
+    private LocalDate promisedDate; // NGÀY NHẬN
+
+    @Column(name = "try_on_date")
+    private LocalDate tryOnDate;    // NGÀY THỬ
 
     @Column
     private LocalDate completedDate;
