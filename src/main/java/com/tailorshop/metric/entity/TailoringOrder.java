@@ -10,6 +10,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Tailoring Order Entity
@@ -30,6 +32,10 @@ public class TailoringOrder {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /** SỐ BIÊN LẠI — auto-generated via sequence */
+    @Column(name = "order_number", unique = true, nullable = false)
+    private Long orderNumber;
 
     @Column(unique = true, nullable = false, length = 100)
     private String orderCode;
@@ -151,5 +157,10 @@ public class TailoringOrder {
 
     @Column
     private Long updatedBy;
+
+    /** Danh sách sản phẩm trong đơn hàng */
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("sortOrder ASC, id ASC")
+    private List<OrderItem> items = new ArrayList<>();
 
 }

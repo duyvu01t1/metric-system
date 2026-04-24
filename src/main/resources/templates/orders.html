@@ -1,370 +1,566 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Orders Management - Metric System</title>
+    <title>Quản lý Đơn hàng - Metric System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
-        .table-container {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        .table-orders th {
+            background: #2c3e50;
+            color: #fff;
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+            padding: 10px 12px;
         }
-        .btn-group-sm .btn {
-            padding: 4px 8px;
-            font-size: 12px;
+        .table-orders td {
+            vertical-align: middle;
+            font-size: 13px;
+            padding: 7px 12px;
         }
+        .order-group-row {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        .order-group-row td:first-child {
+            border-left: 4px solid #3498db;
+        }
+        .item-row td:first-child {
+            border-left: 4px solid transparent;
+        }
+        .item-row {
+            background: #fff;
+        }
+        .item-row:hover { background: #eef6ff; }
+
         .status-badge {
             display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 500;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .3px;
         }
-        .status-pending { background-color: #ffc107; }
-        .status-in_progress { background-color: #17a2b8; }
-        .status-completed { background-color: #28a745; }
-        .status-cancelled { background-color: #dc3545; }
+        .status-PENDING    { background:#fff3cd; color:#856404; }
+        .status-IN_PROGRESS{ background:#cff4fc; color:#055160; }
+        .status-COMPLETED  { background:#d1e7dd; color:#0a3622; }
+        .status-CANCELLED  { background:#f8d7da; color:#842029; }
+        .pay-UNPAID  { background:#f8d7da; color:#842029; }
+        .pay-PARTIAL { background:#fff3cd; color:#856404; }
+        .pay-PAID    { background:#d1e7dd; color:#0a3622; }
+
+        .btn-action { padding: 3px 8px; font-size: 12px; }
+        .number-col { text-align: right; font-variant-numeric: tabular-nums; }
+        .table-container {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+        .item-form-row { background: #f0f4f8; border-radius: 6px; padding: 10px; margin-bottom: 8px; }
+        .add-item-btn { border: 2px dashed #3498db; background: transparent; color: #3498db; width: 100%; margin-top: 6px; }
+        .add-item-btn:hover { background: #eef6ff; }
+        #itemsContainer .remove-item-btn { padding: 2px 8px; font-size: 12px; }
+        .total-row td { font-weight: 700; background: #f8f9fa; }
+        .colspan-label { text-align: right; padding-right: 10px; }
     </style>
 </head>
 <body>
-    <div class="container-fluid mt-4">
-        <div class="row mb-4">
-            <div class="col-md-8">
-                <h2><i class="fas fa-list"></i> Tailoring Orders</h2>
-            </div>
-            <div class="col-md-4 text-end">
-                <button class="btn btn-primary" id="addOrderBtn">
-                    <i class="fas fa-plus"></i> New Order
-                </button>
-            </div>
-        </div>
+<div class="container-fluid mt-4">
 
-        <div class="alert alert-danger alert-dismissible fade hide" id="errorAlert" role="alert">
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            <span id="errorMessage"></span>
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h4 class="mb-0"><i class="fas fa-file-invoice"></i> Quản lý Đơn hàng</h4>
         </div>
-
-        <div class="alert alert-success alert-dismissible fade hide" id="successAlert" role="alert">
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            <span id="successMessage"></span>
+        <div class="col-md-4 text-end">
+            <button class="btn btn-primary" id="addOrderBtn">
+                <i class="fas fa-plus"></i> Thêm đơn hàng
+            </button>
         </div>
+    </div>
 
-        <div class="table-container">
-            <table class="table table-hover">
-                <thead class="table-light">
+    <div class="alert alert-danger alert-dismissible fade show d-none" id="errorAlert">
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <span id="errorMessage"></span>
+    </div>
+    <div class="alert alert-success alert-dismissible fade show d-none" id="successAlert">
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <span id="successMessage"></span>
+    </div>
+
+    <div class="table-container">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover table-orders mb-2">
+                <thead>
                     <tr>
-                        <th>Order Code</th>
-                        <th>Customer</th>
-                        <th>Type</th>
-                        <th>Order Date</th>
-                        <th>Promised Date</th>
-                        <th>Status</th>
-                        <th>Payment</th>
-                        <th>Total Price</th>
-                        <th>Actions</th>
+                        <th style="width:90px">SỐ BIÊN LẠI</th>
+                        <th>SẢN PHẨM</th>
+                        <th style="width:160px">MÃ SP</th>
+                        <th style="width:90px" class="text-end">MET VẢI</th>
+                        <th style="width:80px" class="text-end">SỐ LƯỢNG</th>
+                        <th style="width:130px" class="text-end">ĐƠN GIÁ</th>
+                        <th style="width:140px" class="text-end">THÀNH TIỀN</th>
+                        <th style="width:80px" class="text-center">TRẠNG THÁI</th>
+                        <th style="width:80px" class="text-center">THANH TOÁN</th>
+                        <th style="width:80px" class="text-center">THAO TÁC</th>
                     </tr>
                 </thead>
                 <tbody id="ordersTable">
-                    <tr>
-                        <td colspan="9" class="text-center">Loading...</td>
-                    </tr>
+                    <tr><td colspan="10" class="text-center py-4 text-muted">Đang tải...</td></tr>
                 </tbody>
             </table>
-            <nav>
-                <ul class="pagination" id="pagination"></ul>
-            </nav>
         </div>
+        <nav><ul class="pagination pagination-sm justify-content-end mb-0" id="pagination"></ul></nav>
     </div>
+</div>
 
-    <!-- Create/Edit Order Modal -->
-    <div class="modal fade" id="createOrderModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Create New Order</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="orderForm">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Customer *</label>
-                                <select class="form-select" id="customerId" required>
-                                    <option value="">Select Customer</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Order Type *</label>
-                                <select class="form-select" id="orderType" required>
-                                    <option value="">Select Type</option>
-                                    <option value="SUIT">Suit</option>
-                                    <option value="SHIRT">Shirt</option>
-                                    <option value="PANTS">Pants</option>
-                                    <option value="DRESS">Dress</option>
-                                    <option value="CUSTOM">Custom</option>
-                                </select>
-                            </div>
+<!-- ══════════════ MODAL TẠO / CHỈNH SỬA ══════════════ -->
+<div class="modal fade" id="orderModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="orderModalTitle">Tạo đơn hàng mới</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="orderForm" novalidate>
+
+                    <!-- Thông tin chung -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Khách hàng <span class="text-danger">*</span></label>
+                            <select class="form-select" id="customerId" required>
+                                <option value="">-- Chọn khách hàng --</option>
+                            </select>
                         </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Quantity</label>
-                                <input type="number" class="form-control" id="quantity" value="1" min="1">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Unit Price</label>
-                                <input type="number" class="form-control" id="unitPrice" step="0.01" min="0">
-                            </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Ngày hẹn giao</label>
+                            <input type="date" class="form-control" id="promisedDate">
                         </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Promised Date</label>
-                                <input type="date" class="form-control" id="promisedDate">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Status</label>
-                                <select class="form-select" id="status">
-                                    <option value="PENDING">Pending</option>
-                                    <option value="IN_PROGRESS">In Progress</option>
-                                    <option value="COMPLETED">Completed</option>
-                                    <option value="CANCELLED">Cancelled</option>
-                                </select>
-                            </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">Trạng thái</label>
+                            <select class="form-select" id="status">
+                                <option value="PENDING">Chờ xử lý</option>
+                                <option value="IN_PROGRESS">Đang may</option>
+                                <option value="COMPLETED">Hoàn thành</option>
+                                <option value="CANCELLED">Hủy</option>
+                            </select>
                         </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Description</label>
-                            <textarea class="form-control" id="description" rows="3"></textarea>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Thanh toán</label>
+                            <select class="form-select" id="paymentStatus">
+                                <option value="UNPAID">Chưa thanh toán</option>
+                                <option value="PARTIAL">Thanh toán một phần</option>
+                                <option value="PAID">Đã thanh toán</option>
+                            </select>
                         </div>
+                    </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Notes</label>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Ghi chú</label>
                             <textarea class="form-control" id="notes" rows="2"></textarea>
                         </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" id="saveOrderBtn">Save Order</button>
-                </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Mô tả</label>
+                            <textarea class="form-control" id="description" rows="2"></textarea>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Danh sách sản phẩm -->
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0 fw-bold">Chi tiết sản phẩm</h6>
+                        <small class="text-muted">THÀNH TIỀN = SỐ LƯỢNG × ĐƠN GIÁ</small>
+                    </div>
+
+                    <!-- Header hàng sản phẩm -->
+                    <div class="row g-1 mb-1 d-none d-md-flex" style="font-size:12px;font-weight:600;color:#555;">
+                        <div class="col-md-3">SẢN PHẨM *</div>
+                        <div class="col-md-3">MÃ SP</div>
+                        <div class="col-md-1 text-end">MET VẢI</div>
+                        <div class="col-md-1 text-end">SỐ LƯỢNG *</div>
+                        <div class="col-md-2 text-end">ĐƠN GIÁ *</div>
+                        <div class="col-md-2 text-end">THÀNH TIỀN</div>
+                    </div>
+
+                    <div id="itemsContainer"></div>
+
+                    <button type="button" class="btn add-item-btn mt-1" id="addItemBtn">
+                        <i class="fas fa-plus-circle me-1"></i> Thêm sản phẩm
+                    </button>
+
+                    <div class="d-flex justify-content-end mt-3">
+                        <div class="border rounded px-4 py-2 bg-light">
+                            <span class="fw-bold">TỔNG THÀNH TIỀN: </span>
+                            <span class="fw-bold text-danger fs-5" id="grandTotal">0</span>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" id="saveOrderBtn">
+                    <i class="fas fa-save me-1"></i> Lưu đơn hàng
+                </button>
             </div>
         </div>
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
-    <script th:src="@{/js/form-validator.js}"></script>
-    <script>
-        (function() {
-            let currentPage = 0;
-            const pageSize = 10;
-            let customers = [];
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/form-validator.js}"></script>
+<script>
+(function () {
+    'use strict';
 
-            function loadCustomers() {
-                fetch('/api/customers?size=1000')
-                    .then(r => r.json())
-                    .then(data => {
-                        customers = data.data.content || [];
-                        const select = document.getElementById('customerId');
-                        
-                        // Clear existing options
-                        select.innerHTML = '<option value="">Select Customer</option>';
-                        
-                        customers.forEach(c => {
-                            const option = document.createElement('option');
-                            option.value = c.id;
-                            option.textContent = c.firstName + ' ' + c.lastName;
-                            select.appendChild(option);
-                        });
-                    })
-                    .catch(e => console.error('Error loading customers:', e));
-            }
+    let currentPage = 0;
+    const PAGE_SIZE = 20;
+    let editingOrderId = null;
+    let itemIndex = 0;
 
-            function loadOrders(page = 0) {
-                fetch(`/api/orders?page=${page}&size=${pageSize}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        const orders = data.data.content || [];
-                        const tbody = document.getElementById('ordersTable');
-                        tbody.innerHTML = '';
+    // ── helpers ──────────────────────────────────────────────────────────────
+    const fmt = n => n == null ? '-'
+        : Number(n).toLocaleString('vi-VN', { minimumFractionDigits: 0 });
 
-                        if (orders.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="9" class="text-center">No orders found</td></tr>';
-                            return;
-                        }
+    function showError(msg) {
+        document.getElementById('errorMessage').textContent = msg;
+        document.getElementById('errorAlert').classList.remove('d-none');
+    }
+    function showSuccess(msg) {
+        document.getElementById('successMessage').textContent = msg;
+        document.getElementById('successAlert').classList.remove('d-none');
+        setTimeout(() => document.getElementById('successAlert').classList.add('d-none'), 3000);
+    }
 
-                        orders.forEach(order => {
-                            const row = `<tr>
-                                <td>${order.orderCode}</td>
-                                <td>${order.customerName}</td>
-                                <td>${order.orderType}</td>
-                                <td>${new Date(order.orderDate).toLocaleDateString()}</td>
-                                <td>${order.promisedDate ? new Date(order.promisedDate).toLocaleDateString() : '-'}</td>
-                                <td><span class="status-badge status-${order.status.toLowerCase()}">${order.status}</span></td>
-                                <td>${order.paymentStatus}</td>
-                                <td>${order.totalPrice || '-'}</td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-info" onclick="editOrder(${order.id})">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <button class="btn btn-danger" onclick="deleteOrder(${order.id})">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>`;
-                            tbody.innerHTML += row;
-                        });
+    // ── customers ────────────────────────────────────────────────────────────
+    function loadCustomers() {
+        fetch('/api/customers?size=1000')
+            .then(r => r.json())
+            .then(data => {
+                const list = data.data?.content || [];
+                const sel = document.getElementById('customerId');
+                sel.innerHTML = '<option value="">-- Chọn khách hàng --</option>';
+                list.forEach(c => {
+                    const o = document.createElement('option');
+                    o.value = c.id;
+                    o.textContent = (c.firstName || '') + ' ' + (c.lastName || '');
+                    sel.appendChild(o);
+                });
+            })
+            .catch(e => console.error('loadCustomers:', e));
+    }
 
-                        updatePagination(data.data.totalPages, page);
-                        currentPage = page;
-                    })
-                    .catch(e => showError('Failed to load orders: ' + e.message));
-            }
+    // ── load & render orders ─────────────────────────────────────────────────
+    function loadOrders(page = 0) {
+        fetch(`/api/orders?page=${page}&size=${PAGE_SIZE}&sort=orderNumber,desc`)
+            .then(r => r.json())
+            .then(data => {
+                const orders = data.data?.content || [];
+                const tbody  = document.getElementById('ordersTable');
+                tbody.innerHTML = '';
 
-            function updatePagination(totalPages, currentPageNum) {
-                const pagination = document.getElementById('pagination');
-                pagination.innerHTML = '';
-
-                for (let i = 0; i < totalPages; i++) {
-                    const li = document.createElement('li');
-                    li.className = `page-item ${i === currentPageNum ? 'active' : ''}`;
-                    li.innerHTML = `<a class="page-link" href="#" onclick="loadOrders(${i}); return false;">${i + 1}</a>`;
-                    pagination.appendChild(li);
+                if (!orders.length) {
+                    tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-muted">Chưa có đơn hàng</td></tr>';
+                    return;
                 }
-            }
 
-            function editOrder(id) {
-                alert('Edit functionality coming soon');
-            }
+                orders.forEach(order => {
+                    const items = order.items || [];
+                    const rowSpan = Math.max(items.length, 1);
+                    const statusBadge = `<span class="status-badge status-${order.status}">${statusLabel(order.status)}</span>`;
+                    const payBadge   = `<span class="status-badge pay-${order.paymentStatus}">${payLabel(order.paymentStatus)}</span>`;
+                    const actions = `
+                        <div class="d-flex gap-1 justify-content-center">
+                            <button class="btn btn-sm btn-outline-primary btn-action" onclick="editOrder(${order.id})" title="Sửa">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger btn-action" onclick="deleteOrder(${order.id})" title="Xóa">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>`;
 
-            function deleteOrder(id) {
-                if (confirm('Are you sure?')) {
-                    fetch(`/api/orders/${id}`, { method: 'DELETE' })
-                        .then(r => r.json())
-                        .then(data => {
-                            if (data.success) {
-                                showSuccess('Order archived successfully');
-                                loadOrders(currentPage);
-                            } else {
-                                showError(data.message);
-                            }
-                        })
-                        .catch(e => showError('Error: ' + e.message));
-                }
-            }
-
-            function showError(msg) {
-                const el = document.getElementById('errorMessage');
-                if (el) {
-                    el.textContent = msg;
-                    const alert = document.getElementById('errorAlert');
-                    if (alert) alert.classList.remove('hide');
-                }
-            }
-
-            function showSuccess(msg) {
-                const el = document.getElementById('successMessage');
-                if (el) {
-                    el.textContent = msg;
-                    const alert = document.getElementById('successAlert');
-                    if (alert) alert.classList.remove('hide');
-                }
-            }
-
-            function closeModal(id) {
-                const el = document.getElementById(id);
-                if (el) {
-                    const m = bootstrap.Modal.getInstance(el);
-                    if (m) m.hide();
-                }
-            }
-
-            // Expose functions to global scope for onclick handlers
-            window.editOrder = editOrder;
-            window.deleteOrder = deleteOrder;
-            window.loadOrders = loadOrders;
-
-            // Handle Add button click
-            const addOrderBtn = document.getElementById('addOrderBtn');
-            if (addOrderBtn) {
-                addOrderBtn.addEventListener('click', function() {
-                    const modalEl = document.getElementById('createOrderModal');
-                    if (modalEl) {
-                        try {
-                            // Dispose existing instance if any
-                            const existing = bootstrap.Modal.getInstance(modalEl);
-                            if (existing) {
-                                existing.dispose();
-                            }
-                            
-                            // Create and show new modal instance
-                            const modal = new bootstrap.Modal(modalEl, {
-                                backdrop: 'static',
-                                keyboard: false
-                            });
-                            modal.show();
-                        } catch (e) {
-                            console.error('Error opening modal:', e);
-                        }
+                    if (!items.length) {
+                        // đơn không có item
+                        tbody.innerHTML += `<tr class="order-group-row">
+                            <td rowspan="1"><strong>${order.orderNumber || order.id}</strong></td>
+                            <td colspan="5" class="text-muted fst-italic">Chưa có sản phẩm</td>
+                            <td class="number-col">${fmt(order.totalPrice)}</td>
+                            <td class="text-center">${statusBadge}</td>
+                            <td class="text-center">${payBadge}</td>
+                            <td class="text-center">${actions}</td>
+                        </tr>`;
+                        return;
                     }
-                });
-            }
 
-            // Initialize
-            const saveOrderBtn = document.getElementById('saveOrderBtn');
-            if (saveOrderBtn) {
-                saveOrderBtn.addEventListener('click', function() {
-                    const ok = FormValidator.validate('createOrderModal', [
-                        { id: 'customerId', label: 'Khách hàng',   required: true },
-                        { id: 'orderType',  label: 'Loại đơn hàng', required: true },
-                        { id: 'quantity',   label: 'Số lượng',      required: true, type: 'number', min: 1 },
-                        { id: 'unitPrice',  label: 'Đơn giá',         required: true, type: 'number', min: 0 }
-                    ]);
-                    if (!ok) return;
-
-                    const formData = {
-                        customerId: parseInt(document.getElementById('customerId').value),
-                        orderType: document.getElementById('orderType').value,
-                        quantity: parseInt(document.getElementById('quantity').value),
-                        unitPrice: parseFloat(document.getElementById('unitPrice').value),
-                        promisedDate: document.getElementById('promisedDate').value,
-                        status: document.getElementById('status').value,
-                        description: document.getElementById('description').value,
-                        notes: document.getElementById('notes').value
-                    };
-
-                    fetch('/api/orders', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(formData)
-                    })
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.success) {
-                            showSuccess('Order created successfully');
-                            document.getElementById('orderForm').reset();
-                            closeModal('createOrderModal');
-                            loadOrders(0);
+                    items.forEach((item, idx) => {
+                        if (idx === 0) {
+                            // Hàng đầu tiên: hiển thị SỐ BIÊN LẠI và THAO TÁC với rowspan
+                            tbody.innerHTML += `<tr class="order-group-row">
+                                <td rowspan="${rowSpan}"><strong>${order.orderNumber || order.id}</strong></td>
+                                <td>${escHtml(item.productName)}</td>
+                                <td>${escHtml(item.productCode || '')}</td>
+                                <td class="number-col">${item.fabricMeters != null ? item.fabricMeters : '-'}</td>
+                                <td class="number-col">${item.quantity}</td>
+                                <td class="number-col">${fmt(item.unitPrice)}</td>
+                                <td class="number-col" rowspan="${rowSpan}"><strong>${fmt(order.totalPrice)}</strong></td>
+                                <td class="text-center" rowspan="${rowSpan}">${statusBadge}</td>
+                                <td class="text-center" rowspan="${rowSpan}">${payBadge}</td>
+                                <td class="text-center" rowspan="${rowSpan}">${actions}</td>
+                            </tr>`;
                         } else {
-                            showError(data.message);
+                            tbody.innerHTML += `<tr class="item-row">
+                                <td>${escHtml(item.productName)}</td>
+                                <td>${escHtml(item.productCode || '')}</td>
+                                <td class="number-col">${item.fabricMeters != null ? item.fabricMeters : '-'}</td>
+                                <td class="number-col">${item.quantity}</td>
+                                <td class="number-col">${fmt(item.unitPrice)}</td>
+                            </tr>`;
                         }
-                    })
-                    .catch(e => showError('Error: ' + e.message));
+                    });
+                });
+
+                updatePagination(data.data.totalPages, page);
+                currentPage = page;
+            })
+            .catch(e => showError('Lỗi tải đơn hàng: ' + e.message));
+    }
+
+    function statusLabel(s) {
+        return { PENDING: 'Chờ xử lý', IN_PROGRESS: 'Đang may', COMPLETED: 'Hoàn thành', CANCELLED: 'Hủy' }[s] || s;
+    }
+    function payLabel(s) {
+        return { UNPAID: 'Chưa TT', PARTIAL: 'Một phần', PAID: 'Đã TT' }[s] || s;
+    }
+    function escHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function updatePagination(total, cur) {
+        const ul = document.getElementById('pagination');
+        ul.innerHTML = '';
+        if (total <= 1) return;
+        for (let i = 0; i < total; i++) {
+            const li = document.createElement('li');
+            li.className = 'page-item' + (i === cur ? ' active' : '');
+            li.innerHTML = `<a class="page-link" href="#" onclick="loadOrders(${i});return false;">${i+1}</a>`;
+            ul.appendChild(li);
+        }
+    }
+
+    // ── items builder ─────────────────────────────────────────────────────────
+    function addItemRow(item = {}) {
+        const idx = itemIndex++;
+        const row = document.createElement('div');
+        row.className = 'row g-1 mb-2 align-items-center item-form-row';
+        row.dataset.idx = idx;
+        row.innerHTML = `
+            <div class="col-md-3">
+                <input type="text" class="form-control form-control-sm item-name"
+                       placeholder="Tên sản phẩm *" value="${escHtml(item.productName || '')}" required>
+            </div>
+            <div class="col-md-3">
+                <input type="text" class="form-control form-control-sm item-code"
+                       placeholder="Mã SP" value="${escHtml(item.productCode || '')}">
+            </div>
+            <div class="col-md-1">
+                <input type="number" class="form-control form-control-sm item-fabric"
+                       placeholder="Met vải" step="0.01" min="0"
+                       value="${item.fabricMeters != null ? item.fabricMeters : ''}">
+            </div>
+            <div class="col-md-1">
+                <input type="number" class="form-control form-control-sm item-qty"
+                       placeholder="SL *" min="1" value="${item.quantity || 1}" required>
+            </div>
+            <div class="col-md-2">
+                <input type="number" class="form-control form-control-sm item-price"
+                       placeholder="Đơn giá *" step="1000" min="0"
+                       value="${item.unitPrice != null ? item.unitPrice : ''}" required>
+            </div>
+            <div class="col-md-2 d-flex align-items-center gap-2">
+                <span class="fw-bold item-total text-danger" style="min-width:80px;text-align:right">
+                    ${item.totalPrice != null ? fmt(item.totalPrice) : '0'}
+                </span>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" title="Xóa dòng">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>`;
+
+        // auto-calc THÀNH TIỀN
+        const calcTotal = () => {
+            const qty   = parseFloat(row.querySelector('.item-qty').value)   || 0;
+            const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            const total = qty * price;
+            row.querySelector('.item-total').textContent = fmt(total);
+            recalcGrandTotal();
+        };
+        row.querySelector('.item-qty').addEventListener('input', calcTotal);
+        row.querySelector('.item-price').addEventListener('input', calcTotal);
+
+        // remove row
+        row.querySelector('.remove-item-btn').addEventListener('click', () => {
+            row.remove();
+            recalcGrandTotal();
+        });
+
+        document.getElementById('itemsContainer').appendChild(row);
+        recalcGrandTotal();
+    }
+
+    function recalcGrandTotal() {
+        let total = 0;
+        document.querySelectorAll('#itemsContainer .item-form-row').forEach(row => {
+            const qty   = parseFloat(row.querySelector('.item-qty').value)   || 0;
+            const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            total += qty * price;
+        });
+        document.getElementById('grandTotal').textContent = fmt(total);
+    }
+
+    function collectItems() {
+        const items = [];
+        document.querySelectorAll('#itemsContainer .item-form-row').forEach((row, i) => {
+            const name  = row.querySelector('.item-name').value.trim();
+            const code  = row.querySelector('.item-code').value.trim();
+            const fab   = row.querySelector('.item-fabric').value;
+            const qty   = parseInt(row.querySelector('.item-qty').value)    || 1;
+            const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            if (name) {
+                items.push({
+                    productName:  name,
+                    productCode:  code || null,
+                    fabricMeters: fab !== '' ? parseFloat(fab) : null,
+                    quantity:     qty,
+                    unitPrice:    price,
+                    totalPrice:   qty * price,
+                    sortOrder:    i
                 });
             }
+        });
+        return items;
+    }
 
-            loadCustomers();
-            loadOrders();
-        })();
-    </script>
+    // ── modal open/close ──────────────────────────────────────────────────────
+    let _modal = null;
+    function openModal(title) {
+        document.getElementById('orderModalTitle').textContent = title;
+        if (!_modal) _modal = new bootstrap.Modal(document.getElementById('orderModal'), { backdrop: 'static' });
+        _modal.show();
+    }
+    function closeModal() { if (_modal) _modal.hide(); }
+
+    function resetForm() {
+        document.getElementById('orderForm').reset();
+        document.getElementById('itemsContainer').innerHTML = '';
+        document.getElementById('grandTotal').textContent = '0';
+        itemIndex = 0;
+        editingOrderId = null;
+    }
+
+    // ── edit ─────────────────────────────────────────────────────────────────
+    window.editOrder = function (id) {
+        fetch(`/api/orders/${id}`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { showError(data.message); return; }
+                const o = data.data;
+                editingOrderId = id;
+
+                document.getElementById('customerId').value     = o.customerId     || '';
+                document.getElementById('promisedDate').value   = o.promisedDate   ? o.promisedDate.substring(0,10) : '';
+                document.getElementById('status').value         = o.status         || 'PENDING';
+                document.getElementById('paymentStatus').value  = o.paymentStatus  || 'UNPAID';
+                document.getElementById('notes').value          = o.notes          || '';
+                document.getElementById('description').value    = o.description    || '';
+
+                document.getElementById('itemsContainer').innerHTML = '';
+                itemIndex = 0;
+                (o.items || []).forEach(item => addItemRow(item));
+                if (!(o.items || []).length) addItemRow();
+
+                openModal('Chỉnh sửa đơn hàng #' + (o.orderNumber || id));
+            })
+            .catch(e => showError('Lỗi tải đơn hàng: ' + e.message));
+    };
+
+    // ── delete ────────────────────────────────────────────────────────────────
+    window.deleteOrder = function (id) {
+        if (!confirm('Xác nhận lưu trữ đơn hàng này?')) return;
+        fetch(`/api/orders/${id}`, { method: 'DELETE' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) { showSuccess('Đã lưu trữ đơn hàng'); loadOrders(currentPage); }
+                else showError(data.message);
+            })
+            .catch(e => showError('Lỗi: ' + e.message));
+    };
+
+    window.loadOrders = loadOrders;
+
+    // ── save ──────────────────────────────────────────────────────────────────
+    document.getElementById('saveOrderBtn').addEventListener('click', function () {
+        const customerId = document.getElementById('customerId').value;
+        if (!customerId) { showError('Vui lòng chọn khách hàng'); return; }
+
+        const items = collectItems();
+        if (!items.length) { showError('Vui lòng thêm ít nhất một sản phẩm'); return; }
+
+        const invalidItem = items.find(i => !i.productName || i.unitPrice <= 0 || i.quantity < 1);
+        if (invalidItem) { showError('Tên sản phẩm và đơn giá là bắt buộc cho từng dòng sản phẩm'); return; }
+
+        const payload = {
+            customerId:    parseInt(customerId),
+            promisedDate:  document.getElementById('promisedDate').value || null,
+            status:        document.getElementById('status').value,
+            paymentStatus: document.getElementById('paymentStatus').value,
+            notes:         document.getElementById('notes').value,
+            description:   document.getElementById('description').value,
+            orderType:     'CUSTOM',
+            items:         items
+        };
+
+        const isEdit  = editingOrderId !== null;
+        const url     = isEdit ? `/api/orders/${editingOrderId}` : '/api/orders';
+        const method  = isEdit ? 'PUT' : 'POST';
+
+        fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showSuccess(isEdit ? 'Đã cập nhật đơn hàng' : 'Đã tạo đơn hàng mới');
+                closeModal();
+                loadOrders(isEdit ? currentPage : 0);
+            } else {
+                showError(data.message || 'Có lỗi xảy ra');
+            }
+        })
+        .catch(e => showError('Lỗi: ' + e.message));
+    });
+
+    // ── add button ────────────────────────────────────────────────────────────
+    document.getElementById('addOrderBtn').addEventListener('click', function () {
+        resetForm();
+        addItemRow();
+        openModal('Tạo đơn hàng mới');
+    });
+
+    document.getElementById('addItemBtn').addEventListener('click', function () {
+        addItemRow();
+    });
+
+    // ── init ──────────────────────────────────────────────────────────────────
+    loadCustomers();
+    loadOrders();
+})();
+</script>
 </body>
 </html>

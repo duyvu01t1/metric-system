@@ -19,6 +19,11 @@ public interface TailoringOrderRepository extends JpaRepository<TailoringOrder, 
 
     Optional<TailoringOrder> findByOrderCode(String orderCode);
 
+    Optional<TailoringOrder> findByOrderNumber(Long orderNumber);
+
+    @Query("SELECT COALESCE(MAX(t.orderNumber), 9999) FROM TailoringOrder t")
+    Long findMaxOrderNumber();
+
     Page<TailoringOrder> findByCustomerId(Long customerId, Pageable pageable);
 
     Page<TailoringOrder> findByStatus(String status, Pageable pageable);

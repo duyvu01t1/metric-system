@@ -1,6 +1,6 @@
 package com.tailorshop.metric.dto;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Tailoring Order Data Transfer Object
@@ -20,8 +21,12 @@ import java.time.LocalDateTime;
 public class TailoringOrderDTO {
 
     private Long id;
+
+    /** SỐ BIÊN LẠI */
+    private Long orderNumber;
+
     private String orderCode;
-    
+
     @NotNull(message = "Khách hàng là bắt buộc")
     private Long customerId;
     
@@ -30,17 +35,12 @@ public class TailoringOrderDTO {
     private LocalDate promisedDate;
     private LocalDate completedDate;
     
-    @NotBlank(message = "Loại đơn hàng là bắt buộc")
     private String orderType;
-    
+
     private String description;
-    
-    @NotNull(message = "Số lượng là bắt buộc")
-    @Min(value = 1, message = "Số lượng phải >= 1")
+
     private Integer quantity;
-    
-    @NotNull(message = "Giá đơn vị là bắt buộc")
-    @DecimalMin(value = "0", message = "Giá đơn vị phải >= 0")
+
     private BigDecimal unitPrice;
     private BigDecimal totalPrice;
     private String status;
@@ -74,5 +74,8 @@ public class TailoringOrderDTO {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    /** Danh sách sản phẩm (SẢN PHẨM / MÃ SP / MET VẢI / SỐ LƯỢNG / ĐƠN GIÁ / THÀNH TIỀN) */
+    private List<OrderItemDTO> items;
 
 }

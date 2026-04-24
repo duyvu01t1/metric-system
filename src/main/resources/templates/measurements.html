@@ -65,12 +65,12 @@
         </div>
     </div>
 
-    <!-- Create Measurement Modal -->
+    <!-- Create / Edit Measurement Modal -->
     <div class="modal fade" id="createMeasurementModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Add New Measurement</h5>
+                    <h5 class="modal-title" id="measurementModalTitle">Add New Measurement</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -105,7 +105,7 @@
 
                         <div class="mb-3">
                             <label class="form-label">Notes</label>
-                            <textarea class="form-control" id="notes" rows="2"></textarea>
+                            <textarea class="form-control" id="measurementNotes" rows="2"></textarea>
                         </div>
                     </form>
                 </div>
@@ -124,55 +124,54 @@
         (function() {
             let allOrders = [];
             let allMeasurements = [];
+            let editingMeasurementId = null;
 
             function loadOrders() {
                 fetch('/api/orders?size=1000')
                     .then(r => r.json())
                     .then(data => {
                         allOrders = data.data.content || [];
-                        
+
                         const select1 = document.getElementById('tailoringOrderId');
                         const select2 = document.getElementById('orderFilter');
-                        
-                        // Clear existing options
+
                         select1.innerHTML = '<option value="">Select Order</option>';
                         select2.innerHTML = '<option value="">All Orders</option>';
-                        
+
                         allOrders.forEach(order => {
-                            const option = document.createElement('option');
-                            option.value = order.id;
-                            option.textContent = order.orderCode + ' - ' + order.customerName;
-                            select1.appendChild(option);
-                            
-                            const option2 = document.createElement('option');
-                            option2.value = order.id;
-                            option2.textContent = order.orderCode + ' - ' + order.customerName;
-                            select2.appendChild(option2);
+                            const text = order.orderCode + ' - ' + order.customerName;
+
+                            const opt1 = document.createElement('option');
+                            opt1.value = order.id;
+                            opt1.textContent = text;
+                            select1.appendChild(opt1);
+
+                            const opt2 = document.createElement('option');
+                            opt2.value = order.id;
+                            opt2.textContent = text;
+                            select2.appendChild(opt2);
                         });
                     })
                     .catch(e => console.error('Error loading orders:', e));
             }
 
-            function loadMeasurements(orderId = null) {
-                let url = '/api/measurements';
-                if (orderId) {
-                    url = `/api/measurements/order/${orderId}`;
-                }
-                
-                fetch(url + '?size=1000')
+            function loadMeasurements(orderId) {
+                const url = orderId
+                    ? `/api/measurements/order/${orderId}?size=1000`
+                    : '/api/measurements?size=1000';
+
+                fetch(url)
                     .then(r => r.json())
                     .then(data => {
                         allMeasurements = data.data.content || [];
                         renderMeasurements();
                     })
-                    .catch(e => {
-                        showError('Failed to load measurements: ' + e.message);
-                    });
+                    .catch(e => showError('Failed to load measurements: ' + e.message));
             }
 
             function renderMeasurements() {
                 const container = document.getElementById('measurementsContainer');
-                
+
                 if (allMeasurements.length === 0) {
                     container.innerHTML = '<p class="text-center text-muted">No measurements found</p>';
                     return;
@@ -180,7 +179,6 @@
 
                 let html = '';
                 allMeasurements.forEach(m => {
-                    const order = allOrders.find(o => o.id === m.tailoringOrderId);
                     html += `
                         <div class="measurement-card">
                             <div class="row align-items-center">
@@ -193,15 +191,15 @@
                                     <small class="text-muted">${m.unit}</small>
                                 </div>
                                 <div class="col-md-3 text-end">
-                                    <button class="btn btn-sm btn-info" onclick="editMeasurement(${m.id})">
+                                    <button class="btn btn-sm btn-info me-1" onclick="editMeasurement(${m.id})" title="Edit">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-danger" onclick="deleteMeasurement(${m.id})">
+                                    <button class="btn btn-sm btn-danger" onclick="deleteMeasurement(${m.id})" title="Delete">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
                             </div>
-                            ${m.notes ? `<small class="text-muted">Notes: ${m.notes}</small>` : ''}
+                            ${m.notes ? `<small class="text-muted mt-1 d-block">Notes: ${m.notes}</small>` : ''}
                         </div>
                     `;
                 });
@@ -210,15 +208,33 @@
 
             function filterByOrder() {
                 const orderId = document.getElementById('orderFilter').value;
-                if (orderId) {
-                    loadMeasurements(orderId);
-                } else {
-                    loadMeasurements();
-                }
+                loadMeasurements(orderId || null);
+            }
+
+            function openMeasurementModal(title) {
+                document.getElementById('measurementModalTitle').textContent = title;
+                const modalEl = document.getElementById('createMeasurementModal');
+                const existing = bootstrap.Modal.getInstance(modalEl);
+                if (existing) existing.dispose();
+                const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+                modal.show();
             }
 
             function editMeasurement(id) {
-                alert('Edit functionality coming soon');
+                const m = allMeasurements.find(x => x.id === id);
+                if (!m) {
+                    showError('Measurement not found');
+                    return;
+                }
+                editingMeasurementId = id;
+
+                document.getElementById('tailoringOrderId').value = m.tailoringOrderId || '';
+                document.getElementById('fieldName').value        = m.fieldName        || '';
+                document.getElementById('value').value            = m.value            || '';
+                document.getElementById('unit').value             = m.unit             || '';
+                document.getElementById('measurementNotes').value = m.notes            || '';
+
+                openMeasurementModal('Edit Measurement — ' + (m.fieldName || id));
             }
 
             function deleteMeasurement(id) {
@@ -228,7 +244,7 @@
                         .then(data => {
                             if (data.success) {
                                 showSuccess('Measurement deleted successfully');
-                                loadMeasurements();
+                                loadMeasurements(document.getElementById('orderFilter').value || null);
                             } else {
                                 showError(data.message);
                             }
@@ -241,8 +257,7 @@
                 const el = document.getElementById('errorMessage');
                 if (el) {
                     el.textContent = msg;
-                    const alert = document.getElementById('errorAlert');
-                    if (alert) alert.classList.remove('hide');
+                    document.getElementById('errorAlert').classList.remove('hide');
                 }
             }
 
@@ -250,8 +265,7 @@
                 const el = document.getElementById('successMessage');
                 if (el) {
                     el.textContent = msg;
-                    const alert = document.getElementById('successAlert');
-                    if (alert) alert.classList.remove('hide');
+                    document.getElementById('successAlert').classList.remove('hide');
                 }
             }
 
@@ -263,76 +277,58 @@
                 }
             }
 
-            // Expose functions to global scope for onclick handlers
-            window.editMeasurement = editMeasurement;
+            window.editMeasurement   = editMeasurement;
             window.deleteMeasurement = deleteMeasurement;
-            window.filterByOrder = filterByOrder;
+            window.filterByOrder     = filterByOrder;
 
-            // Handle Add button click
-            const addMeasurementBtn = document.getElementById('addMeasurementBtn');
-            if (addMeasurementBtn) {
-                addMeasurementBtn.addEventListener('click', function() {
-                    const modalEl = document.getElementById('createMeasurementModal');
-                    if (modalEl) {
-                        try {
-                            // Dispose existing instance if any
-                            const existing = bootstrap.Modal.getInstance(modalEl);
-                            if (existing) {
-                                existing.dispose();
-                            }
-                            
-                            // Create and show new modal instance
-                            const modal = new bootstrap.Modal(modalEl, {
-                                backdrop: 'static',
-                                keyboard: false
-                            });
-                            modal.show();
-                        } catch (e) {
-                            console.error('Error opening modal:', e);
-                        }
+            // Add button — reset form and open for create
+            document.getElementById('addMeasurementBtn').addEventListener('click', function() {
+                editingMeasurementId = null;
+                document.getElementById('measurementForm').reset();
+                openMeasurementModal('Add New Measurement');
+            });
+
+            // Save button — handles both create (POST) and edit (PUT)
+            document.getElementById('saveMeasurementBtn').addEventListener('click', function() {
+                const ok = FormValidator.validate('createMeasurementModal', [
+                    { id: 'tailoringOrderId', label: 'Đơn hàng',  required: true },
+                    { id: 'fieldName',        label: 'Tên đo',    required: true },
+                    { id: 'value',            label: 'Giá trị',   required: true, type: 'number' },
+                    { id: 'unit',             label: 'Đơn vị đo', required: true }
+                ]);
+                if (!ok) return;
+
+                const formData = {
+                    tailoringOrderId: parseInt(document.getElementById('tailoringOrderId').value),
+                    fieldName:        document.getElementById('fieldName').value,
+                    value:            parseFloat(document.getElementById('value').value),
+                    unit:             document.getElementById('unit').value,
+                    notes:            document.getElementById('measurementNotes').value
+                };
+
+                const isEdit = editingMeasurementId !== null;
+                const url    = isEdit ? `/api/measurements/${editingMeasurementId}` : '/api/measurements';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        showSuccess(isEdit ? 'Measurement updated successfully' : 'Measurement added successfully');
+                        document.getElementById('measurementForm').reset();
+                        editingMeasurementId = null;
+                        closeModal('createMeasurementModal');
+                        loadMeasurements(document.getElementById('orderFilter').value || null);
+                    } else {
+                        showError(data.message);
                     }
-                });
-            }
-
-            // Initialize
-            const saveMeasurementBtn = document.getElementById('saveMeasurementBtn');
-            if (saveMeasurementBtn) {
-                saveMeasurementBtn.addEventListener('click', function() {
-                    const ok = FormValidator.validate('createMeasurementModal', [
-                        { id: 'tailoringOrderId', label: 'Đơn hàng',    required: true },
-                        { id: 'fieldName',         label: 'Tên đo',      required: true },
-                        { id: 'value',             label: 'Giá trị',     required: true, type: 'number' },
-                        { id: 'unit',              label: 'Đơn vị đo', required: true }
-                    ]);
-                    if (!ok) return;
-
-                    const formData = {
-                        tailoringOrderId: parseInt(document.getElementById('tailoringOrderId').value),
-                        fieldName: document.getElementById('fieldName').value,
-                        value: parseFloat(document.getElementById('value').value),
-                        unit: document.getElementById('unit').value,
-                        notes: document.getElementById('notes').value
-                    };
-
-                    fetch('/api/measurements', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(formData)
-                    })
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.success) {
-                            showSuccess('Measurement added successfully');
-                            document.getElementById('measurementForm').reset();
-                            closeModal('createMeasurementModal');
-                            loadMeasurements();
-                        } else {
-                            showError(data.message);
-                        }
-                    })
-                    .catch(e => showError('Error: ' + e.message));
-                });
-            }
+                })
+                .catch(e => showError('Error: ' + e.message));
+            });
 
             loadOrders();
             loadMeasurements();

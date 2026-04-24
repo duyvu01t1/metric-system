@@ -1,6 +1,7 @@
 package com.tailorshop.metric.controller;
 
 import com.tailorshop.metric.dto.ApiResponse;
+import com.tailorshop.metric.dto.OrderItemDTO;
 import com.tailorshop.metric.dto.TailoringOrderDTO;
 import com.tailorshop.metric.service.TailoringOrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,9 +16,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * Tailoring Order Controller
- */
+import java.util.List;
+
 @RestController
 @RequestMapping("/orders")
 @RequiredArgsConstructor
@@ -26,8 +26,10 @@ public class TailoringOrderController {
 
     private final TailoringOrderService tailoringOrderService;
 
+    // ── CRUD đơn hàng ────────────────────────────────────────────────────────
+
     @PostMapping
-    @Operation(summary = "Create a new order")
+    @Operation(summary = "Tạo đơn hàng mới")
     public ResponseEntity<ApiResponse<?>> createOrder(@Valid @RequestBody TailoringOrderDTO dto) {
         try {
             TailoringOrderDTO created = tailoringOrderService.createOrder(dto);
@@ -40,27 +42,23 @@ public class TailoringOrderController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all orders")
+    @Operation(summary = "Lấy danh sách đơn hàng (phân trang)")
     public ResponseEntity<ApiResponse<?>> getAllOrders(
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size,
-        @RequestParam(required = false) Integer limit,
-        @RequestParam(required = false) String sort) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) String sort) {
         try {
-            // If limit is provided, use it instead of size
             int actualSize = limit != null ? limit : size;
-
             Pageable pageable;
             if (sort != null && !sort.trim().isEmpty()) {
-                // Parse sort parameter like "orderDate,desc"
-                String[] sortParts = sort.split(",");
-                Sort.Direction direction = sortParts.length > 1 && "desc".equalsIgnoreCase(sortParts[1])
+                String[] parts = sort.split(",");
+                Sort.Direction dir = parts.length > 1 && "desc".equalsIgnoreCase(parts[1])
                     ? Sort.Direction.DESC : Sort.Direction.ASC;
-                pageable = PageRequest.of(page, actualSize, Sort.by(direction, sortParts[0]));
+                pageable = PageRequest.of(page, actualSize, Sort.by(dir, parts[0]));
             } else {
-                pageable = PageRequest.of(page, actualSize);
+                pageable = PageRequest.of(page, actualSize, Sort.by(Sort.Direction.DESC, "orderNumber"));
             }
-
             Page<TailoringOrderDTO> orders = tailoringOrderService.getAllOrders(pageable);
             return ResponseEntity.ok(ApiResponse.success("Orders retrieved successfully", orders));
         } catch (Exception e) {
@@ -70,7 +68,7 @@ public class TailoringOrderController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get order by ID")
+    @Operation(summary = "Lấy đơn hàng theo ID")
     public ResponseEntity<ApiResponse<?>> getOrderById(@PathVariable Long id) {
         try {
             TailoringOrderDTO order = tailoringOrderService.getOrderById(id);
@@ -82,11 +80,11 @@ public class TailoringOrderController {
     }
 
     @GetMapping("/customer/{customerId}")
-    @Operation(summary = "Get orders by customer ID")
+    @Operation(summary = "Lấy đơn hàng theo khách hàng")
     public ResponseEntity<ApiResponse<?>> getOrdersByCustomerId(
-        @PathVariable Long customerId,
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size) {
+            @PathVariable Long customerId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         try {
             Pageable pageable = PageRequest.of(page, size);
             Page<TailoringOrderDTO> orders = tailoringOrderService.getOrdersByCustomerId(customerId, pageable);
@@ -98,11 +96,11 @@ public class TailoringOrderController {
     }
 
     @GetMapping("/status/{status}")
-    @Operation(summary = "Get orders by status")
+    @Operation(summary = "Lấy đơn hàng theo trạng thái")
     public ResponseEntity<ApiResponse<?>> getOrdersByStatus(
-        @PathVariable String status,
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size) {
+            @PathVariable String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         try {
             Pageable pageable = PageRequest.of(page, size);
             Page<TailoringOrderDTO> orders = tailoringOrderService.getOrdersByStatus(status, pageable);
@@ -114,10 +112,10 @@ public class TailoringOrderController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update an order")
+    @Operation(summary = "Cập nhật đơn hàng")
     public ResponseEntity<ApiResponse<?>> updateOrder(
-        @PathVariable Long id,
-        @Valid @RequestBody TailoringOrderDTO dto) {
+            @PathVariable Long id,
+            @RequestBody TailoringOrderDTO dto) {
         try {
             TailoringOrderDTO updated = tailoringOrderService.updateOrder(id, dto);
             return ResponseEntity.ok(ApiResponse.success("Order updated successfully", updated));
@@ -128,7 +126,7 @@ public class TailoringOrderController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Archive an order")
+    @Operation(summary = "Lưu trữ đơn hàng (soft delete)")
     public ResponseEntity<ApiResponse<?>> deleteOrder(@PathVariable Long id) {
         try {
             tailoringOrderService.deleteOrder(id);
@@ -139,4 +137,33 @@ public class TailoringOrderController {
         }
     }
 
+    // ── Quản lý items trong đơn hàng ─────────────────────────────────────────
+
+    @GetMapping("/{id}/items")
+    @Operation(summary = "Lấy danh sách sản phẩm của đơn hàng")
+    public ResponseEntity<ApiResponse<?>> getOrderItems(@PathVariable Long id) {
+        try {
+            TailoringOrderDTO order = tailoringOrderService.getOrderById(id);
+            return ResponseEntity.ok(ApiResponse.success("Items retrieved successfully", order.getItems()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error("FETCH_FAILED", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}/items")
+    @Operation(summary = "Cập nhật toàn bộ sản phẩm của đơn hàng")
+    public ResponseEntity<ApiResponse<?>> updateOrderItems(
+            @PathVariable Long id,
+            @Valid @RequestBody List<OrderItemDTO> items) {
+        try {
+            TailoringOrderDTO dto = tailoringOrderService.getOrderById(id);
+            dto.setItems(items);
+            TailoringOrderDTO updated = tailoringOrderService.updateOrder(id, dto);
+            return ResponseEntity.ok(ApiResponse.success("Items updated successfully", updated));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error("UPDATE_FAILED", e.getMessage()));
+        }
+    }
 }
