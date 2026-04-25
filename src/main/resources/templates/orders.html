@@ -58,11 +58,6 @@
         .tbl-items .num { text-align:right; }
         .item-total-cell { font-weight:600; color:#c0392b; }
 
-        /* ── Nested modal fix ── */
-        .modal-backdrop.show ~ .modal-backdrop.show { z-index:1060; }
-        #modalItem { z-index:1070; }
-        #modalItem + .modal-backdrop { z-index:1065; }
-
         /* ── Inline validation ── */
         .field-error { color:#dc3545; font-size:11px; margin-top:3px; display:none; }
         .field-error.show { display:block; }
@@ -70,6 +65,25 @@
 
         /* ── Pagination ── */
         .pagination-sm .page-link { font-size:12px; padding:3px 8px; }
+
+        /* ── Autocomplete dropdown ── */
+        .autocomplete-wrap { position:relative; }
+        .ac-drop {
+            position:absolute; top:100%; left:0; right:0; z-index:1055;
+            background:#fff; border:1px solid #ced4da; border-radius:4px;
+            max-height:200px; overflow-y:auto;
+            box-shadow:0 4px 12px rgba(0,0,0,.15);
+            display:none; margin-top:2px;
+        }
+        .ac-drop.show { display:block; }
+        .ac-item {
+            padding:6px 10px; cursor:pointer; font-size:12.5px;
+            border-bottom:1px solid #f0f0f0;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        }
+        .ac-item:hover, .ac-item.active { background:#e8f0fe; }
+        .ac-item:last-child { border-bottom:none; }
+        .ac-empty { padding:7px 10px; color:#888; font-size:12px; font-style:italic; }
     </style>
 </head>
 <body>
@@ -98,15 +112,27 @@
         <div class="row g-2 align-items-end">
             <div class="col-md-3">
                 <label class="form-label mb-1 fw-semibold small">Số Biên Lai</label>
-                <input type="text" class="form-control form-control-sm" id="srchNum" placeholder="Tìm số biên lai...">
+                <div class="autocomplete-wrap">
+                    <input type="text" class="form-control form-control-sm" id="srchNum"
+                           placeholder="Tìm số biên lai..." autocomplete="off">
+                    <div class="ac-drop" id="acNum"></div>
+                </div>
             </div>
             <div class="col-md-3">
                 <label class="form-label mb-1 fw-semibold small">Họ và Tên KH</label>
-                <input type="text" class="form-control form-control-sm" id="srchName" placeholder="Tìm tên khách hàng...">
+                <div class="autocomplete-wrap">
+                    <input type="text" class="form-control form-control-sm" id="srchName"
+                           placeholder="Tìm tên khách hàng..." autocomplete="off">
+                    <div class="ac-drop" id="acName"></div>
+                </div>
             </div>
             <div class="col-md-3">
                 <label class="form-label mb-1 fw-semibold small">Số Điện Thoại KH</label>
-                <input type="text" class="form-control form-control-sm" id="srchPhone" placeholder="Tìm số điện thoại...">
+                <div class="autocomplete-wrap">
+                    <input type="text" class="form-control form-control-sm" id="srchPhone"
+                           placeholder="Tìm số điện thoại..." autocomplete="off">
+                    <div class="ac-drop" id="acPhone"></div>
+                </div>
             </div>
             <div class="col-md-3 d-flex gap-2">
                 <button class="btn btn-primary btn-sm flex-fill" id="btnSearch">
@@ -188,17 +214,23 @@
 
                         <div class="col-md-6">
                             <label class="form-label fw-semibold mb-1">Khách hàng <span class="text-danger">*</span></label>
-                            <select class="form-select form-select-sm" id="fldCustomer">
-                                <option value="">-- Chọn khách hàng --</option>
-                            </select>
+                            <div class="autocomplete-wrap">
+                                <input type="text" class="form-control form-control-sm" id="fldCustomer"
+                                       placeholder="Tìm tên hoặc số điện thoại..." autocomplete="off">
+                                <input type="hidden" id="fldCustomerId">
+                                <div class="ac-drop" id="acCustomer"></div>
+                            </div>
                             <div class="field-error" id="errCustomer">Vui lòng chọn khách hàng</div>
                         </div>
 
                         <div class="col-md-3">
                             <label class="form-label fw-semibold mb-1">Nguồn khách</label>
-                            <select class="form-select form-select-sm" id="fldChannel">
-                                <option value="">-- Chọn --</option>
-                            </select>
+                            <div class="autocomplete-wrap">
+                                <input type="text" class="form-control form-control-sm" id="fldChannel"
+                                       placeholder="Nhập nguồn khách..." autocomplete="off">
+                                <input type="hidden" id="fldChannelId">
+                                <div class="ac-drop" id="acChannel"></div>
+                            </div>
                         </div>
 
                         <div class="col-md-3">
@@ -238,16 +270,22 @@
 
                         <div class="col-md-4">
                             <label class="form-label fw-semibold mb-1">BH Chính</label>
-                            <select class="form-select form-select-sm" id="fldPrimaryStaff">
-                                <option value="">-- Chọn --</option>
-                            </select>
+                            <div class="autocomplete-wrap">
+                                <input type="text" class="form-control form-control-sm" id="fldPrimaryStaff"
+                                       placeholder="Nhập tên bán hàng..." autocomplete="off">
+                                <input type="hidden" id="fldPrimaryStaffId">
+                                <div class="ac-drop" id="acPrimaryStaff"></div>
+                            </div>
                         </div>
 
                         <div class="col-md-4">
                             <label class="form-label fw-semibold mb-1">BH Phụ</label>
-                            <select class="form-select form-select-sm" id="fldSecondaryStaff">
-                                <option value="">-- Chọn --</option>
-                            </select>
+                            <div class="autocomplete-wrap">
+                                <input type="text" class="form-control form-control-sm" id="fldSecondaryStaff"
+                                       placeholder="Nhập tên bán hàng..." autocomplete="off">
+                                <input type="hidden" id="fldSecondaryStaffId">
+                                <div class="ac-drop" id="acSecondaryStaff"></div>
+                            </div>
                         </div>
 
                         <div class="col-md-4">
@@ -299,6 +337,60 @@
                     <div class="col-md-8 text-end">
                         <button class="btn btn-success btn-sm" id="btnAddItem">
                             <i class="fas fa-plus me-1"></i>Thêm sản phẩm
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ── Inline item form (hidden by default) ── -->
+                <div id="itemFormCard" class="card border-success mb-2" style="display:none">
+                    <div class="card-header py-1 fw-bold" style="background:#2c5f2e;color:#fff">
+                        <span id="itemFormTitle">Thêm sản phẩm</span>
+                    </div>
+                    <div class="card-body p-2">
+                        <div class="row g-2">
+                            <div class="col-md-8">
+                                <label class="form-label fw-semibold mb-1 small">Tên sản phẩm <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="iFldName"
+                                       placeholder="VD: SUIT DNT, SOMI HÙNG OANH...">
+                                <div class="field-error" id="errItemName">Vui lòng nhập tên sản phẩm</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold mb-1 small">Mã SP</label>
+                                <input type="text" class="form-control form-control-sm" id="iFldCode"
+                                       placeholder="VD: 334166...">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold mb-1 small">Met vải</label>
+                                <input type="number" class="form-control form-control-sm" id="iFldFabric"
+                                       step="0.01" min="0" placeholder="0.00">
+                                <div class="field-error" id="errItemFabric">Met vải phải &ge; 0</div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold mb-1 small">Số lượng <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control form-control-sm" id="iFldQty"
+                                       min="1" value="1">
+                                <div class="field-error" id="errItemQty">Số lượng phải &ge; 1</div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold mb-1 small">Đơn giá (₫) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control form-control-sm" id="iFldPrice"
+                                       min="0" step="100000" placeholder="0">
+                                <div class="field-error" id="errItemPrice">Đơn giá phải &ge; 0</div>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <div class="w-100 p-2 bg-light rounded border text-center">
+                                    <div class="small text-muted">Thành tiền</div>
+                                    <div class="fw-bold text-danger" id="iPreviewTotal">0 ₫</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer py-1 text-end">
+                        <button type="button" class="btn btn-outline-secondary btn-sm me-1" id="btnCancelItem">
+                            <i class="fas fa-times me-1"></i>Hủy
+                        </button>
+                        <button type="button" class="btn btn-success btn-sm" id="btnSaveItem">
+                            <i class="fas fa-check me-1"></i>Xác nhận
                         </button>
                     </div>
                 </div>
@@ -356,68 +448,6 @@
         </div>
     </div>
 </div>
-
-
-<!-- ══════════════════════════════════════════════════════════
-     MODAL: THÊM / SỬA SẢN PHẨM (nested inside modalDetail)
-══════════════════════════════════════════════════════════ -->
-<div class="modal fade" id="modalItem" tabindex="-1" data-bs-backdrop="false">
-    <div class="modal-dialog">
-        <div class="modal-content border-success">
-            <div class="modal-header py-2" style="background:#2c5f2e;color:#fff">
-                <h6 class="modal-title fw-bold" id="itemFormTitle">Thêm sản phẩm</h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row g-2">
-                    <div class="col-12">
-                        <label class="form-label fw-semibold mb-1">Tên sản phẩm <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control form-control-sm" id="iFldName"
-                               placeholder="VD: SUIT DNT, SOMI HÙNG OANH...">
-                        <div class="field-error" id="errItemName">Vui lòng nhập tên sản phẩm</div>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label fw-semibold mb-1">Mã SP</label>
-                        <input type="text" class="form-control form-control-sm" id="iFldCode"
-                               placeholder="VD: 334166, BS1001-1...">
-                    </div>
-                    <div class="col-4">
-                        <label class="form-label fw-semibold mb-1">Met vải</label>
-                        <input type="number" class="form-control form-control-sm" id="iFldFabric"
-                               step="0.01" min="0" placeholder="0.00">
-                        <div class="field-error" id="errItemFabric">Met vải phải &ge; 0</div>
-                    </div>
-                    <div class="col-4">
-                        <label class="form-label fw-semibold mb-1">Số lượng <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control form-control-sm" id="iFldQty"
-                               min="1" value="1">
-                        <div class="field-error" id="errItemQty">Số lượng phải &ge; 1</div>
-                    </div>
-                    <div class="col-4">
-                        <label class="form-label fw-semibold mb-1">Đơn giá (₫) <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control form-control-sm" id="iFldPrice"
-                               min="0" step="100000" placeholder="0">
-                        <div class="field-error" id="errItemPrice">Đơn giá phải &ge; 0</div>
-                    </div>
-                    <div class="col-12">
-                        <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded border">
-                            <span class="fw-semibold">Thành tiền:</span>
-                            <span class="fw-bold text-danger fs-5" id="iPreviewTotal">0 ₫</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer py-2">
-                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
-                <button type="button" class="btn btn-success btn-sm" id="btnSaveItem">
-                    <i class="fas fa-check me-1"></i>Xác nhận
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-<!-- overlay for nested modal -->
-<div id="itemBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1065"></div>
 
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -486,32 +516,6 @@
             customers = c.data?.content || [];
             channels  = ch.data?.content || [];
             staffList = st.data?.content || [];
-            buildSelects();
-        });
-    }
-
-    function buildSelects() {
-        /* customers */
-        const cSel = $('fldCustomer');
-        cSel.innerHTML = '<option value="">-- Chọn khách hàng --</option>';
-        customers.forEach(c => {
-            const o = new Option(
-                `${c.firstName || ''} ${c.lastName || ''}${c.phone ? ' (' + c.phone + ')' : ''}`,
-                c.id
-            );
-            cSel.add(o);
-        });
-
-        /* channels */
-        const chSel = $('fldChannel');
-        chSel.innerHTML = '<option value="">-- Chọn --</option>';
-        channels.forEach(ch => chSel.add(new Option(ch.displayName || ch.name || ch.id, ch.id)));
-
-        /* staff */
-        ['fldPrimaryStaff', 'fldSecondaryStaff'].forEach(sid => {
-            const sel = $(sid);
-            sel.innerHTML = '<option value="">-- Chọn --</option>';
-            staffList.forEach(s => sel.add(new Option(s.fullName || s.staffCode, s.id)));
         });
     }
 
@@ -562,7 +566,9 @@
         tbody.innerHTML = rows.map(o => `
             <tr data-id="${o.id}">
                 <td style="white-space:nowrap">
-                    <a href="#" class="order-num-link" data-action="detail" data-id="${o.id}">
+                    <a href="#" class="order-num-link"
+                       data-bs-toggle="modal" data-bs-target="#modalDetail"
+                       data-order-id="${o.id}">
                         ${esc(o.orderNumber ?? o.id)}
                     </a>
                 </td>
@@ -594,10 +600,9 @@
         const btn = e.target.closest('[data-action]');
         if (!btn) return;
         e.preventDefault();
-        const id  = parseInt(btn.dataset.id);
+        const id  = parseInt(btn.dataset.id, 10);
         const act = btn.dataset.action;
-        if (act === 'detail') openDetail(id);
-        else if (act === 'edit') editOrder(id);
+        if (act === 'edit')   editOrder(id);
         else if (act === 'delete') deleteOrder(id);
     });
 
@@ -653,13 +658,188 @@
     });
     $('btnReset').addEventListener('click', () => {
         ['srchNum', 'srchName', 'srchPhone'].forEach(id => $(id).value = '');
+        ['acNum', 'acName', 'acPhone'].forEach(id => $(id).classList.remove('show'));
         srchState = {};
         colFilter = {};
         document.querySelectorAll('.filter-row input[data-col]').forEach(i => i.value = '');
         loadOrders(0);
     });
-    ['srchNum', 'srchName', 'srchPhone'].forEach(id =>
-        $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('btnSearch').click(); })
+    /* Enter on search fields handled inside setupAC below */
+
+    /* ══════════════════════════════════════════════════════════
+       AUTOCOMPLETE cho 3 ô tìm kiếm
+    ══════════════════════════════════════════════════════════ */
+    function debounce(fn, ms) {
+        let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    }
+
+    function setupAC(inputId, dropId, fetchFn, toValue, toLabel) {
+        const inp  = $(inputId);
+        const drop = $(dropId);
+        let active = -1;
+
+        const hideDrop = () => { drop.classList.remove('show'); active = -1; };
+        const showDrop = () => drop.classList.add('show');
+
+        const refresh = debounce(async () => {
+            const q = inp.value.trim();
+            drop.innerHTML = '';
+            active = -1;
+            if (q.length < 1) { hideDrop(); return; }
+
+            drop.innerHTML = '<div class="ac-empty"><i class="fas fa-spinner fa-spin me-1"></i>Đang tìm...</div>';
+            showDrop();
+
+            try {
+                const result = await fetchFn(q);
+                const seen = new Set();
+                const uniq = result.filter(r => {
+                    const v = toValue(r);
+                    if (!v || seen.has(v)) return false;
+                    seen.add(v); return true;
+                });
+
+                drop.innerHTML = '';
+                if (!uniq.length) {
+                    drop.innerHTML = '<div class="ac-empty">Không tìm thấy kết quả</div>';
+                    return;
+                }
+                uniq.slice(0, 8).forEach(item => {
+                    const d = document.createElement('div');
+                    d.className = 'ac-item';
+                    d.textContent = toLabel(item);
+                    d.addEventListener('mousedown', ev => {
+                        ev.preventDefault();
+                        inp.value = toValue(item);
+                        hideDrop();
+                        $('btnSearch').click();
+                    });
+                    drop.appendChild(d);
+                });
+            } catch { hideDrop(); }
+        }, 280);
+
+        inp.addEventListener('input', refresh);
+        inp.addEventListener('blur',  () => setTimeout(hideDrop, 180));
+        inp.addEventListener('keydown', e => {
+            const items = drop.querySelectorAll('.ac-item');
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                active = Math.min(active + 1, items.length - 1);
+                items.forEach((el, i) => el.classList.toggle('active', i === active));
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                active = Math.max(active - 1, 0);
+                items.forEach((el, i) => el.classList.toggle('active', i === active));
+            } else if (e.key === 'Enter') {
+                if (active >= 0 && items[active]) {
+                    e.preventDefault();
+                    inp.value = items[active].textContent.split(' — ')[0].trim();
+                    hideDrop();
+                }
+                $('btnSearch').click();
+            } else if (e.key === 'Escape') {
+                hideDrop();
+            }
+        });
+    }
+
+    setupAC('srchNum', 'acNum',
+        q => fetch('/api/orders?orderNumber=' + encodeURIComponent(q) + '&size=8')
+                .then(r => r.json()).then(d => d.data?.content || []),
+        r => String(r.orderNumber ?? ''),
+        r => String(r.orderNumber ?? '')
+    );
+    setupAC('srchName', 'acName',
+        q => fetch('/api/orders?customerName=' + encodeURIComponent(q) + '&size=8')
+                .then(r => r.json()).then(d => d.data?.content || []),
+        r => r.customerName ?? '',
+        r => r.customerName ?? ''
+    );
+    setupAC('srchPhone', 'acPhone',
+        q => fetch('/api/orders?phone=' + encodeURIComponent(q) + '&size=8')
+                .then(r => r.json()).then(d => d.data?.content || []),
+        r => r.customerPhone ?? '',
+        r => r.customerPhone
+            ? `${r.customerPhone}${r.customerName ? ' — ' + r.customerName : ''}`
+            : ''
+    );
+
+    /* ── setupLocalAC: autocomplete from in-memory arrays ── */
+    function setupLocalAC(inputId, dropId, hiddenId, getItems, toId, toLabel) {
+        const inp    = $(inputId);
+        const drop   = $(dropId);
+        const hidden = hiddenId ? $(hiddenId) : null;
+        let active   = -1;
+        const hideDrop = () => { drop.classList.remove('show'); active = -1; };
+        const showDrop = () => drop.classList.add('show');
+        function refresh() {
+            const q = inp.value.trim().toLowerCase();
+            drop.innerHTML = ''; active = -1;
+            if (!q) { hideDrop(); return; }
+            const matches = getItems().filter(item =>
+                toLabel(item).toLowerCase().includes(q)
+            ).slice(0, 10);
+            if (!matches.length) {
+                drop.innerHTML = '<div class="ac-empty">Không tìm thấy kết quả</div>';
+                showDrop(); return;
+            }
+            matches.forEach(item => {
+                const d = document.createElement('div');
+                d.className = 'ac-item';
+                d.textContent = toLabel(item);
+                d.addEventListener('mousedown', ev => {
+                    ev.preventDefault();
+                    inp.value = toLabel(item);
+                    if (hidden) hidden.value = toId(item);
+                    hideDrop();
+                });
+                drop.appendChild(d);
+            });
+            showDrop();
+        }
+        inp.addEventListener('input', () => { if (hidden) hidden.value = ''; refresh(); });
+        inp.addEventListener('blur',  () => setTimeout(hideDrop, 180));
+        inp.addEventListener('keydown', e => {
+            const items = drop.querySelectorAll('.ac-item');
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                active = Math.min(active + 1, items.length - 1);
+                items.forEach((el, i) => el.classList.toggle('active', i === active));
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                active = Math.max(active - 1, 0);
+                items.forEach((el, i) => el.classList.toggle('active', i === active));
+            } else if (e.key === 'Enter' && active >= 0 && items[active]) {
+                e.preventDefault();
+                const label = items[active].textContent;
+                inp.value = label;
+                const match = getItems().find(item => toLabel(item) === label);
+                if (hidden && match) hidden.value = toId(match);
+                hideDrop();
+            } else if (e.key === 'Escape') { hideDrop(); }
+        });
+    }
+
+    setupLocalAC('fldCustomer', 'acCustomer', 'fldCustomerId',
+        () => customers,
+        c  => String(c.id),
+        c  => `${c.firstName||''} ${c.lastName||''}${c.phone ? ' (' + c.phone + ')' : ''}`.trim()
+    );
+    setupLocalAC('fldChannel', 'acChannel', 'fldChannelId',
+        () => channels,
+        ch => String(ch.id),
+        ch => ch.displayName || ch.name || String(ch.id)
+    );
+    setupLocalAC('fldPrimaryStaff', 'acPrimaryStaff', 'fldPrimaryStaffId',
+        () => staffList,
+        s  => String(s.id),
+        s  => s.fullName || s.staffCode || String(s.id)
+    );
+    setupLocalAC('fldSecondaryStaff', 'acSecondaryStaff', 'fldSecondaryStaffId',
+        () => staffList,
+        s  => String(s.id),
+        s  => s.fullName || s.staffCode || String(s.id)
     );
 
 
@@ -673,7 +853,7 @@
         let ok = true;
         clearAllFieldErrs(['fldCustomer','errCustomer'],['fldOrderDate','errOrderDate'],['fldDeposit','errDeposit']);
 
-        if (!$('fldCustomer').value) {
+        if (!$('fldCustomerId').value) {
             setFieldErr('fldCustomer', 'errCustomer', true); ok = false;
         }
         if (!$('fldOrderDate').value) {
@@ -690,6 +870,10 @@
     function resetOrderForm() {
         $('formOrder').reset();
         $('fldDeposit').value = '0';
+        $('fldCustomerId').value     = '';
+        $('fldChannelId').value      = '';
+        $('fldPrimaryStaffId').value = '';
+        $('fldSecondaryStaffId').value = '';
         clearAllFieldErrs(['fldCustomer','errCustomer'],['fldOrderDate','errOrderDate'],['fldDeposit','errDeposit']);
     }
 
@@ -713,16 +897,30 @@
                 editingOrderId = id;
                 resetOrderForm();
 
-                $('fldCustomer').value       = String(o.customerId ?? '');
-                $('fldChannel').value        = String(o.sourceChannelId ?? '');
+                // customer
+                const custMatch = customers.find(c => c.id == o.customerId);
+                $('fldCustomer').value   = custMatch
+                    ? `${custMatch.firstName||''} ${custMatch.lastName||''}${custMatch.phone ? ' (' + custMatch.phone + ')' : ''}`.trim()
+                    : (o.customerName ?? '');
+                $('fldCustomerId').value = String(o.customerId ?? '');
+                // channel
+                const chMatch = channels.find(c => c.id == o.sourceChannelId);
+                $('fldChannel').value    = chMatch ? (chMatch.displayName || chMatch.name || '') : '';
+                $('fldChannelId').value  = String(o.sourceChannelId ?? '');
                 $('fldStatus').value         = o.status        || 'PENDING';
                 $('fldOrderDate').value      = fmtD(o.orderDate);
                 $('fldTryOnDate').value      = fmtD(o.tryOnDate);
                 $('fldPromisedDate').value   = fmtD(o.promisedDate);
                 $('fldPayStatus').value      = o.paymentStatus  || 'UNPAID';
                 $('fldDeposit').value        = o.depositAmount  ?? 0;
-                $('fldPrimaryStaff').value   = String(o.primaryStaffId   ?? '');
-                $('fldSecondaryStaff').value = String(o.secondaryStaffId ?? '');
+                // primary staff
+                const psMatch = staffList.find(s => s.id == o.primaryStaffId);
+                $('fldPrimaryStaff').value   = psMatch ? (psMatch.fullName || psMatch.staffCode || '') : '';
+                $('fldPrimaryStaffId').value = String(o.primaryStaffId ?? '');
+                // secondary staff
+                const ssMatch = staffList.find(s => s.id == o.secondaryStaffId);
+                $('fldSecondaryStaff').value   = ssMatch ? (ssMatch.fullName || ssMatch.staffCode || '') : '';
+                $('fldSecondaryStaffId').value = String(o.secondaryStaffId ?? '');
                 $('fldNotes').value          = o.notes ?? '';
 
                 $('modalOrderTitle').textContent = `Sửa đơn hàng #${o.orderNumber ?? id}`;
@@ -747,12 +945,12 @@
     $('btnSaveOrder').addEventListener('click', () => {
         if (!validateOrderForm()) return;
 
-        const ch = $('fldChannel').value;
-        const ps = $('fldPrimaryStaff').value;
-        const ss = $('fldSecondaryStaff').value;
+        const ch = $('fldChannelId').value;
+        const ps = $('fldPrimaryStaffId').value;
+        const ss = $('fldSecondaryStaffId').value;
 
         const payload = {
-            customerId:       parseInt($('fldCustomer').value),
+            customerId:       parseInt($('fldCustomerId').value),
             sourceChannelId:  ch ? parseInt(ch) : null,
             status:           $('fldStatus').value,
             orderDate:        $('fldOrderDate').value || null,
@@ -805,6 +1003,14 @@
     let iSortCol = 'sortOrder', iSortDir = 'asc';
     let iColFilter = {}, iSearch = '', iPage = 0;
 
+    /* Bootstrap 5 — kích hoạt openDetail khi modal sắp hiện */
+    $('modalDetail').addEventListener('show.bs.modal', function (ev) {
+        const trigger = ev.relatedTarget;
+        if (trigger && trigger.dataset.orderId) {
+            openDetail(parseInt(trigger.dataset.orderId, 10));
+        }
+    });
+
     function openDetail(id) {
         detailId = id;
         const o = allRows.find(r => r.id === id);
@@ -813,8 +1019,9 @@
         iColFilter = {}; iSearch = '';
         $('itemSearch').value = '';
         document.querySelectorAll('#modalDetail .filter-row input[data-icol]').forEach(i => i.value = '');
+        allItems = [];
+        renderItems();
         fetchItems();
-        showModal('modalDetail');
     }
 
     function fetchItems() {
@@ -948,16 +1155,21 @@
         } else {
             $('itemFormTitle').textContent = 'Thêm sản phẩm';
         }
-        /* show custom overlay + modal (nested modal fix) */
-        $('itemBackdrop').style.display = 'block';
-        showModal('modalItem');
+        $('itemFormCard').style.display = '';
+        $('iFldName').focus();
     }
 
     $('btnAddItem').addEventListener('click', () => openItemForm());
 
-    /* hide overlay when item modal closes */
-    $('modalItem').addEventListener('hidden.bs.modal', () => {
-        $('itemBackdrop').style.display = 'none';
+    $('btnCancelItem').addEventListener('click', () => {
+        $('itemFormCard').style.display = 'none';
+        editItemIdx = null;
+    });
+
+    /* hide inline form when detail modal closes */
+    $('modalDetail').addEventListener('hide.bs.modal', () => {
+        $('itemFormCard').style.display = 'none';
+        editItemIdx = null;
     });
 
     /* live preview total */
@@ -1014,7 +1226,8 @@
         if (editItemIdx !== null) allItems[editItemIdx] = item;
         else allItems.push(item);
 
-        hideModal('modalItem');
+        $('itemFormCard').style.display = 'none';
+        editItemIdx = null;
         renderItems();
     });
 

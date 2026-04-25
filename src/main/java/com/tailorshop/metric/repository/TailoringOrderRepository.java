@@ -44,6 +44,8 @@ public interface TailoringOrderRepository extends JpaRepository<TailoringOrder, 
         Pageable pageable
     );
 
+    Page<TailoringOrder> findByIsArchivedFalse(Pageable pageable);
+
     Page<TailoringOrder> findByCustomerId(Long customerId, Pageable pageable);
 
     Page<TailoringOrder> findByStatus(String status, Pageable pageable);

@@ -120,7 +120,7 @@ public class TailoringOrderService {
 
     @Transactional(readOnly = true)
     public Page<TailoringOrderDTO> getAllOrders(Pageable pageable) {
-        return toPage(tailoringOrderRepository.findAll(pageable), pageable);
+        return toPage(tailoringOrderRepository.findByIsArchivedFalse(pageable), pageable);
     }
 
     /**
